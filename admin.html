@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - SSTU Bus Tracker</title>
+
+<!-- Tailwind + Flowbite -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://unpkg.com/flowbite@1.7.0/dist/flowbite.min.css" rel="stylesheet">
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script type="module" src="./firebase.js"></script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans p-6">
+
+<h1 class="text-3xl font-bold mb-6"><i class="fas fa-tools"></i> Admin Panel</h1>
+
+<div class="grid md:grid-cols-2 gap-6">
+
+  <!-- GPS Tracking Card -->
+  <div class="card p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white">
+    <h2 class="text-xl font-semibold mb-2"><i class="fas fa-bus"></i> Bus Location</h2>
+    <p>Automatic GPS tracking from mobile/desktop.</p>
+    <button id="startTracking" class="mt-4 px-4 py-2 bg-green-600 rounded hover:bg-green-700 transition">
+      <i class="fas fa-location-arrow"></i> Start Tracking
+    </button>
+    <button id="stopTracking" class="mt-2 px-4 py-2 bg-red-600 rounded hover:bg-red-700 transition">
+      <i class="fas fa-stop"></i> Stop Tracking
+    </button>
+    <p id="trackingStatus" class="mt-2 font-semibold"></p>
+  </div>
+
+  <!-- Timings & Notices -->
+  <div class="card p-6 rounded-2xl shadow-lg bg-white dark:bg-gray-700">
+    <h2 class="text-xl font-semibold mb-2"><i class="fas fa-clock"></i> Timings & Notices</h2>
+    <label class="block mt-2">Start Time</label>
+    <input type="time" id="startTime" class="w-full p-2 border rounded"/>
+    <label class="block mt-2">End Time</label>
+    <input type="time" id="endTime" class="w-full p-2 border rounded"/>
+    <label class="block mt-2">Notice</label>
+    <textarea id="noticeText" class="w-full p-2 border rounded" placeholder="Enter notice"></textarea>
+    <button id="updateTimeNoticeBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      <i class="fas fa-upload"></i> Update
+    </button>
+  </div>
+
+</div>
+
+<script type="module">
+import { db } from './firebase.js';
+import { ref, set } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+let watchId = null;
+
+// Start GPS tracking
+document.getElementById('startTracking').addEventListener('click', () => {
+  if(!navigator.geolocation) return alert('GPS not supported.');
+  watchId = navigator.geolocation.watchPosition(pos=>{
+    const {latitude: lat, longitude: lng, speed} = pos.coords;
+    set(ref(db,'bus'),{lat,lng,speed:speed||20,timestamp:new Date().toISOString()});
+    document.getElementById('trackingStatus').innerText = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+  }, err=>{
+    if(err.code===1) alert('Permission denied.');
+    else if(err.code===2) alert('Location unavailable.');
+    else if(err.code===3) alert('Timeout.');
+  }, { enableHighAccuracy:true, maximumAge:2000, timeout:10000 });
+});
+
+// Stop GPS tracking
+document.getElementById('stopTracking').addEventListener('click',()=>{
+  if(watchId!==null){ navigator.geolocation.clearWatch(watchId); document.getElementById('trackingStatus').innerText='Tracking stopped.'; watchId=null; }
+});
+
+// Update timings & notice
+document.getElementById('updateTimeNoticeBtn').addEventListener('click',()=>{
+  const startTime=document.getElementById('startTime').value;
+  const endTime=document.getElementById('endTime').value;
+  const notice=document.getElementById('noticeText').value;
+  const date=new Date().toISOString().split('T')[0];
+  set(ref(db,'admin'),{startTime,endTime,notice,date});
+  alert('Updated successfully!');
+});
+</script>
+
+</body>
+</html>

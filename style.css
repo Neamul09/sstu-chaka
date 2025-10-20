@@ -1,0 +1,23 @@
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700&display=swap');
+body { font-family:'Inter', sans-serif; }
+
+/* Cards */
+.card{border-radius:1rem;box-shadow:0 4px 20px rgba(0,0,0,0.1);transition:all 0.3s;}
+.card:hover{transform:translateY(-4px);box-shadow:0 8px 25px rgba(0,0,0,0.2);}
+body.dark .card{background:#374151;color:#f3f4f6;}
+
+/* Map styling */
+#map{border-radius:1rem;overflow:hidden;}
+
+/* Stop list hover */
+#stop-list li{padding:0.3rem 0.2rem;border-bottom:1px solid rgba(0,0,0,0.05);}
+body.dark #stop-list li{border-bottom:1px solid rgba(255,255,255,0.1);}
+#stop-list li:hover{background:rgba(37,99,235,0.1);}
+body.dark #stop-list li:hover{background:rgba(37,99,235,0.2);}
+
+/* Dark mode toggle */
+#darkModeToggle{display:flex;align-items:center;gap:0.3rem;}
+
+/* Smooth bus marker animation */
+.leaflet-marker-icon{transition:transform 0.5s linear;}
