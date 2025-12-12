@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Admin panel for SSTU Chaka drivers">
+  <meta name="theme-color" content="#3b82f6">
+
+  <title>Driver Panel - SSTU Chaka</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/animations.css">
+  <link rel="stylesheet" href="./css/toast.css">
+
+  <style>
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: #fafafa;
+      margin: 0;
+      padding: 0;
+    }
+
+    [data-theme="dark"] body {
+      background: #111827;
+    }
+
+    .page-header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1.5rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    [data-theme="dark"] .page-header {
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom-color: #374151;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    [data-theme="dark"] .brand {
+      color: white;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+
+    [data-theme="dark"] .btn-secondary {
+      background: #374151;
+      color: white;
+    }
+
+    [data-theme="dark"] .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .status-banner {
+      background: linear-gradient(to right, #dbeafe, #a7f3d0);
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .banner-icon {
+      width: 48px;
+      height: 48px;
+      background: #3b82f6;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .banner-content h3 {
+      color: #1e40af;
+      font-weight: 700;
+      margin: 0 0 0.25rem 0;
+    }
+
+    .banner-content p {
+      color: #1d4ed8;
+      margin: 0;
+      font-size: 0.875rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+    }
+
+    [data-theme="dark"] .stat-card {
+      background: #1f2937;
+      border-color: #374151;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.875rem;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    [data-theme="dark"] .stat-value {
+      color: white;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+    }
+
+    [data-theme="dark"] .card {
+      background: #1f2937;
+      border-color: #374151;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-item {
+      padding: 0.75rem;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    [data-theme="dark"] .status-item {
+      background: #111827;
+    }
+
+    .status-label {
+      font-weight: 500;
+      color: #111827;
+      font-size: 0.875rem;
+    }
+
+    [data-theme="dark"] .status-label {
+      color: white;
+    }
+
+    .status-value {
+      font-weight: 600;
+      color: #3b82f6;
+      font-size: 0.875rem;
+    }
+
+    .map-container {
+      height: 300px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 1rem;
+      border: 1px solid #e5e7eb;
+    }
+
+    [data-theme="dark"] .map-container {
+      border-color: #374151;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-weight: 500;
+      font-size: 0.875rem;
+      color: #374151;
+      margin-bottom: 0.5rem;
+    }
+
+    [data-theme="dark"] .form-label {
+      color: #d1d5db;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.625rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    [data-theme="dark"] .form-input {
+      background: #111827;
+      border-color: #374151;
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="page-header">
+    <div class="header-content">
+      <div class="brand">
+        <img src="https://i.ibb.co.com/TBDbx9n4/20251213-025509-0000.png" alt="SSTU Chaka Logo"
+          style="width: 36px; height: 36px; border-radius: 6px;">
+        <div>
+          <span>Driver Panel</span>
+          <div style="font-size: 0.75rem; color: #6b7280; font-weight: 500;" id="driverBadge">Loading...</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="theme-toggle" id="themeToggle" role="button">
+          <div class="theme-toggle-thumb">
+            <i class="fas fa-sun"></i>
+          </div>
+        </div>
+
+        <a href="./index.html" class="btn btn-secondary">
+          <i class="fas fa-home"></i>
+          <span>Tracker</span>
+        </a>
+
+        <button class="btn btn-danger" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="gpsStatusBanner" class="status-banner" style="display: none;">
+      <div class="banner-icon">
+        <i class="fas fa-satellite-dish"></i>
+      </div>
+      <div class="banner-content">
+        <h3>Auto-Tracking Active</h3>
+        <p>Your location is being shared automatically. Works even when screen is off!</p>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: #111827;">
+      Welcome, <span id="driverName">Driver</span>!
+    </h2>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">GPS Status</div>
+        <div class="stat-value" id="gpsStatus" style="font-size: 1.5rem;">Inactive</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Current Speed</div>
+        <div class="stat-value" id="currentSpeed">-- km/h</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Last Update</div>
+        <div class="stat-value" id="lastUpdate" style="font-size: 1.25rem;">--</div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-location-arrow"></i>
+          Live Tracking
+        </div>
+
+        <div
+          style="padding: 1rem; background: #f9fafb; border-radius: 8px; margin-bottom: 1rem; border-left: 3px solid #3b82f6;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+            <span style="font-weight: 600; font-size: 0.875rem;">Auto-Tracking Enabled</span>
+          </div>
+          <p style="font-size: 0.875rem; color: #6b7280; margin: 0; line-height: 1.5;">
+            Your location is automatically shared when you open this page. No manual action needed!
+          </p>
+        </div>
+
+        <!-- Additional Settings - Collapsible -->
+        <details style="margin-bottom: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+          <summary
+            style="padding: 0.875rem; background: #f9fafb; cursor: pointer; font-weight: 600; font-size: 0.875rem; color: #374151; display: flex; align-items: center; gap: 0.5rem; user-select: none;">
+            <i class="fas fa-cog"></i>
+            <span>Additional Settings</span>
+            <i class="fas fa-chevron-down" style="margin-left: auto; font-size: 0.75rem;"></i>
+          </summary>
+
+          <div style="padding: 1rem; background: #ffffff;">
+            <!-- Bus Name Editor -->
+            <div
+              style="padding: 1rem; background: #f0fdf4; border-radius: 8px; margin-bottom: 1rem; border-left: 3px solid #10b981;">
+              <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: #065f46;">
+                <i class="fas fa-bus"></i> Bus Name
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="busNameInput" class="form-input" placeholder="e.g., SSTU-1" maxlength="10"
+                  style="flex: 1; margin: 0; padding: 0.5rem;">
+                <button id="setBusNameBtn" class="btn btn-primary"
+                  style="white-space: nowrap; margin: 0; padding: 0.5rem 1rem;">
+                  <i class="fas fa-check"></i> Set
+                </button>
+              </div>
+              <div style="font-size: 0.625rem; color: #6b7280; margin-top: 0.25rem;">Max 10 characters</div>
+              <div id="currentBusName" style="margin-top: 0.5rem; font-size: 0.75rem; color: #6b7280;">
+                Current: Bus
+              </div>
+            </div>
+
+            <!-- Bus Departure Time -->
+            <div style="padding: 1rem; background: #eff6ff; border-radius: 8px; border-left: 3px solid #3b82f6;">
+              <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: #1e40af;">
+                <i class="fas fa-clock"></i> Departure Time (12-hour)
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="time" id="busTimeInput" class="form-input" style="flex: 1; margin: 0; padding: 0.5rem;">
+                <button id="setBusTimeBtn" class="btn btn-primary"
+                  style="white-space: nowrap; margin: 0; padding: 0.5rem 1rem;">
+                  <i class="fas fa-check"></i> Set
+                </button>
+              </div>
+              <div id="currentBusTime" style="margin-top: 0.5rem; font-size: 0.75rem; color: #6b7280;">
+                No time set
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="status-item">
+          <span class="status-label">Tracking Status:</span>
+          <span class="status-value" id="trackingStatusBadge">Active</span>
+        </div>
+
+        <div class="map-container" id="previewMap"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-bullhorn"></i>
+          Post Notice
+        </div>
+
+        <form id="noticeForm">
+          <div class="form-group">
+            <label class="form-label">Notice Title</label>
+            <input type="text" id="noticeTitle" class="form-input" placeholder="e.g., Schedule Change" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Message</label>
+            <textarea id="noticeMessage" class="form-input" rows="3" placeholder="Enter details..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="noticePriority" class="form-input">
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            <i class="fas fa-paper-plane"></i>
+            <span>Publish Notice</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    import { db, ref, set, get, push } from './js/config.js';
+    import { initAuth, logout, getCurrentUser } from './js/auth.js';
+    import { showToast, formatTime } from './js/utils.js';
+    import { routeCoords } from './data/route.js';
+
+    let currentUser = null;
+    let watchId = null;
+    let wakeLock = null;
+
+    initAuth(async (user) => {
+      if (!user) {
+        window.location.href = './login.html';
+        return;
+      }
+
+      currentUser = user;
+
+      // Theme toggle
+      const themeToggle = document.getElementById('themeToggle');
+      const html = document.documentElement;
+      const themeIcon = themeToggle.querySelector('i');
+
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      html.setAttribute('data-theme', savedTheme);
+      themeIcon.className = savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        themeIcon.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+      });
+
+      // Helper: Convert to 12-hour format
+      function to12Hour(time24) {
+        if (!time24) return time24;
+        const [hours, minutes] = time24.split(':');
+        const h = parseInt(hours);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${minutes} ${ampm}`;
+      }
+
+      // Load Bus Name
+      async function loadBusName() {
+        if (!currentUser?.assignedBus) return;
+        const busRef = ref(db, `buses/${currentUser.assignedBus}`);
+        const snapshot = await get(busRef);
+        if (snapshot.exists()) {
+          const busData = snapshot.val();
+          if (busData.name) {
+            document.getElementById('busNameInput').value = busData.name;
+            document.getElementById('currentBusName').innerHTML =
+              `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${busData.name}`;
+          }
+        }
+      }
+
+      // Set Bus Name
+      document.getElementById('setBusNameBtn').addEventListener('click', async () => {
+        const busName = document.getElementById('busNameInput').value.trim().substring(0, 10);
+        if (!busName) { showToast('Enter a bus name', 'warning'); return; }
+        if (!currentUser?.assignedBus) { showToast('No bus assigned', 'warning'); return; }
+        try {
+          const busRef = ref(db, `buses/${currentUser.assignedBus}`);
+          const snapshot = await get(busRef);
+          const busData = snapshot.exists() ? snapshot.val() : {};
+          await set(busRef, { ...busData, name: busName, active: true, number: busData.number || '1' });
+          showToast('Bus name updated!', 'success');
+          document.getElementById('currentBusName').innerHTML =
+            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${busName}`;
+        } catch (error) { console.error(error); showToast('Failed', 'error'); }
+      });
+
+      // Load Bus Time
+      async function loadBusTime() {
+        if (!currentUser?.assignedBus) return;
+        const busRef = ref(db, `buses/${currentUser.assignedBus}`);
+        const snapshot = await get(busRef);
+        if (snapshot.exists() && snapshot.val().departureTime) {
+          const time = snapshot.val().departureTime;
+          document.getElementById('busTimeInput').value = time;
+          document.getElementById('currentBusTime').innerHTML =
+            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${to12Hour(time)}`;
+        }
+      }
+
+      // Set Bus Time
+      document.getElementById('setBusTimeBtn').addEventListener('click', async () => {
+        const busTime = document.getElementById('busTimeInput').value;
+        if (!busTime) { showToast('Select a time', 'warning'); return; }
+        if (!currentUser?.assignedBus) { showToast('No bus assigned', 'warning'); return; }
+        try {
+          const busRef = ref(db, `buses/${currentUser.assignedBus}`);
+          const snapshot = await get(busRef);
+          const busData = snapshot.exists() ? snapshot.val() : {};
+          await set(busRef, { ...busData, departureTime: busTime, active: true, name: busData.name || 'Bus', number: busData.number || '1' });
+          showToast('Time set!', 'success');
+          document.getElementById('currentBusTime').innerHTML =
+            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${to12Hour(busTime)}`;
+        } catch (error) { console.error(error); showToast('Failed', 'error'); }
+      });
+
+      loadBusName();
+      loadBusTime();
+
+      // Logout button - SINGLE event listener
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        if (confirm('Logout? GPS tracking will stop.')) {
+          await stopTracking();
+          await logout();
+          window.location.href = './login.html';
+        }
+      });
+
+
+      async function loadDriverInfo() {
+        document.getElementById('driverName').textContent = currentUser.displayName || 'Driver';
+
+        const driverRef = ref(db, `drivers/${currentUser.uid}`);
+        const snapshot = await get(driverRef);
+
+        if (snapshot.exists()) {
+          const driverData = snapshot.val();
+          document.getElementById('driverBadge').textContent =
+            driverData.assignedBus ? `Bus: ${driverData.assignedBus}` : 'No Bus Assigned';
+        }
+      }
+
+      loadDriverInfo();
+
+      // Map setup
+      const previewMap = L.map('previewMap').setView([25.069036, 91.396317], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(previewMap);
+
+      const routeLine = L.polyline(routeCoords, {
+        color: '#3b82f6',
+        weight: 4,
+        opacity: 0.7
+      }).addTo(previewMap);
+
+      previewMap.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+
+      let currentLocationMarker = null;
+
+      // AUTO-START GPS TRACKING
+      setTimeout(() => {
+        startAutoTracking();
+      }, 1000);
+
+      async function startAutoTracking() {
+        if (!navigator.geolocation) {
+          showToast('GPS not supported', 'error');
+          return;
+        }
+
+        if (!currentUser?.assignedBus) {
+          showToast('No bus assigned. Contact admin.', 'warning');
+          return;
+        }
+
+        document.getElementById('gpsStatus').textContent = 'Starting...';
+
+        try {
+          if ('wakeLock' in navigator) {
+            try {
+              wakeLock = await navigator.wakeLock.request('screen');
+              console.log('Wake Lock acquired');
+            } catch (err) {
+              console.log('Wake Lock not available:', err);
+            }
+          }
+
+          watchId = navigator.geolocation.watchPosition(
+            updatePosition,
+            handleLocationError,
+            {
+              enableHighAccuracy: true,
+              maximumAge: 1000,  // Accept 1-second old position
+              timeout: 10000
+            }
+          );
+
+          document.getElementById('gpsStatus').textContent = 'Active';
+          document.getElementById('trackingStatusBadge').textContent = 'Active';
+          document.getElementById('gpsStatusBanner').style.display = 'flex';
+          showToast('Auto-tracking started!', 'success');
+
+        } catch (error) {
+          console.error('GPS error:', error);
+          document.getElementById('gpsStatus').textContent = 'Error';
+          showToast('Failed to start auto-tracking', 'error');
+        }
+      }
+
+      async function stopTracking() {
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+
+        if (wakeLock) {
+          await wakeLock.release();
+          wakeLock = null;
+        }
+      }
+
+      async function updatePosition(position) {
+        const { latitude: lat, longitude: lng, speed, accuracy } = position.coords;
+
+        const speedKmh = speed ? Math.round(speed * 3.6) : 0;
+
+        if (!currentUser?.assignedBus) return;
+
+        const trackingRef = ref(db, `tracking/${currentUser.assignedBus}`);
+        await set(trackingRef, {
+          lat,
+          lng,
+          speed: speedKmh,
+          accuracy: Math.round(accuracy),
+          heading: 0,
+          timestamp: Date.now(),
+          driverId: currentUser.uid
+        });
+
+        document.getElementById('currentSpeed').textContent = `${speedKmh} km/h`;
+        document.getElementById('lastUpdate').textContent = formatTime(Date.now());
+
+        if (currentLocationMarker) {
+          previewMap.removeLayer(currentLocationMarker);
+        }
+
+        currentLocationMarker = L.marker([lat, lng], {
+          icon: L.divIcon({
+            html: '<div style="background: #3b82f6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(16,185,129,0.4);"></div>',
+            className: '',
+            iconSize: [20, 20]
+          })
+        }).addTo(previewMap);
+
+        previewMap.panTo([lat, lng]);
+      }
+
+      function handleLocationError(error) {
+        console.error('GPS error:', error);
+        document.getElementById('gpsStatus').textContent = 'Error';
+
+        let message = 'Location error';
+        if (error.code === 1) message = 'Location permission denied';
+        else if (error.code === 2) message = 'Location unavailable';
+        else if (error.code === 3) message = 'Location timeout';
+
+        showToast(message, 'warning');
+      }
+
+      // Notice form
+      document.getElementById('noticeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const title = document.getElementById('noticeTitle').value.trim();
+        const message = document.getElementById('noticeMessage').value.trim();
+        const priority = document.getElementById('noticePriority').value;
+
+        if (!title || !message) {
+          showToast('Please fill all fields', 'warning');
+          return;
+        }
+
+        const noticesRef = ref(db, 'notices');
+        const newNoticeRef = push(noticesRef);
+
+        try {
+          await set(newNoticeRef, {
+            title,
+            message,
+            priority,
+            createdBy: currentUser.uid,
+            createdByName: currentUser.displayName || 'Driver',
+            timestamp: Date.now(),
+            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
+          });
+
+          showToast('Notice published!', 'success');
+
+          document.getElementById('noticeTitle').value = '';
+          document.getElementById('noticeMessage').value = '';
+          document.getElementById('noticePriority').value = 'normal';
+        } catch (error) {
+          console.error('Error publishing notice:', error);
+          showToast('Failed to publish notice', 'error');
+        }
+      });
+
+      console.log('? Admin panel initialized');
+    });
+  </script>
+</body>
+
+</html>

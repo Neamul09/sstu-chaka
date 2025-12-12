@@ -1,0 +1,926 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Real-time SSTU campus bus tracking">
+  <meta name="theme-color" content="#3b82f6">
+
+  <title>SSTU Chaka - Live Bus Tracker</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/animations.css">
+  <link rel="stylesheet" href="./css/toast.css">
+
+  <style>
+    :root {
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+    }
+
+    [data-theme="dark"] {
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Anek Bangla', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: #fafafa;
+    }
+
+    [data-theme="dark"] body {
+      background: #111827;
+    }
+
+    .page-header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1.5rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    [data-theme="dark"] .page-header {
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom-color: #374151;
+    }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    [data-theme="dark"] .brand {
+      color: white;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .map-section {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+      border: 1px solid #e5e7eb;
+    }
+
+    [data-theme="dark"] .map-section {
+      background: #1f2937;
+      border-color: #374151;
+    }
+
+    .map-container {
+      height: 500px;
+      position: relative;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
+      animation: slideUp 0.4s ease-out;
+      animation-fill-mode: both;
+      transition: all 0.2s ease;
+    }
+
+    /* Card slide-in animation */
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Stagger card animations */
+    .card:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+
+    .card:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .card:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    [data-theme="dark"] .card {
+      background: #1f2937;
+      border-color: #374151;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    [data-theme="dark"] .card-title {
+      color: #9ca3af;
+    }
+
+    .notice-item {
+      padding: 1rem;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      border-left: 3px solid #3b82f6;
+      transition: all 0.2s ease;
+    }
+
+    [data-theme="dark"] .notice-item {
+      background: #111827;
+      border-left-color: #3b82f6;
+    }
+
+    .notice-item:hover {
+      background: #f3f4f6;
+      transform: translateX(2px);
+    }
+
+    [data-theme="dark"] .notice-item:hover {
+      background: #0f1419;
+    }
+
+    .notice-item.high {
+      border-left-color: #ef4444;
+      background: #fef2f2;
+    }
+
+    [data-theme="dark"] .notice-item.high {
+      background: #1a0f0f;
+    }
+
+    .notice-title {
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    [data-theme="dark"] .notice-title {
+      color: white;
+    }
+
+    .notice-time {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+
+    .notice-message {
+      font-size: 0.875rem;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+
+    [data-theme="dark"] .notice-message {
+      color: #9ca3af;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #dbeafe;
+      color: #1e40af;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      background: #3b82f6;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .stop-item {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+    }
+
+    [data-theme="dark"] .stop-item {
+      border-bottom-color: #374151;
+    }
+
+    .stop-item:last-child {
+      border-bottom: none;
+    }
+
+    .stop-name {
+      font-weight: 500;
+      color: #111827;
+      margin-bottom: 0.25rem;
+    }
+
+    [data-theme="dark"] .stop-name {
+      color: white;
+    }
+
+    .stop-distance {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    .eta-badge {
+      font-weight: 700;
+      font-size: 0.875rem;
+      white-space: nowrap;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 0.75rem;
+    }
+
+    [data-theme="dark"] .progress-container {
+      background: #374151;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #2563eb);
+      width: 0%;
+      transition: width 0.5s ease;
+      border-radius: 999px;
+    }
+
+    .progress-text {
+      text-align: center;
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      color: #6b7280;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Map marker pulse animation */
+    @keyframes markerPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+        transform: scale(1);
+      }
+
+      50% {
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+        transform: scale(1.05);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        transform: scale(1);
+      }
+    }
+
+    .bus-marker-pulse {
+      animation: markerPulse 1s ease-out;
+    }
+
+    /* Smooth route transition */
+    .leaflet-interactive {
+      transition: stroke 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Notice banner slide down animation */
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .map-container {
+        height: 350px;
+      }
+
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="page-header">
+    <div class="header-content">
+      <div class="brand">
+        <img src="https://i.ibb.co.com/TBDbx9n4/20251213-025509-0000.png" alt="SSTU Chaka Logo"
+          style="width: 40px; height: 40px; border-radius: 8px;">
+        <span>SSTU Chaka</span>
+      </div>
+
+      <div class="theme-toggle" id="themeToggle" role="button">
+        <div class="theme-toggle-thumb">
+          <i class="fas fa-sun"></i>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Latest Notice Banner (Above Map) -->
+    <div id="latestNoticeBanner"
+      style="display: none; margin-bottom: 1rem; padding: 1rem 1.25rem; background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%); border-radius: 12px; border-left: 4px solid #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15); position: relative; animation: slideDown 0.3s ease-out;">
+      <button onclick="document.getElementById('latestNoticeBanner').style.display='none'"
+        style="position: absolute; top: 0.75rem; right: 0.75rem; background: none; border: none; color: #6b7280; cursor: pointer; font-size: 1.25rem; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;">
+        <i class="fas fa-times"></i>
+      </button>
+      <div style="display: flex; align-items: start; gap: 0.75rem;">
+        <i class="fas fa-bullhorn" style="color: #3b82f6; font-size: 1.25rem; margin-top: 0.125rem;"></i>
+        <div style="flex: 1; padding-right: 2rem;">
+          <div id="latestNoticeTitle"
+            style="font-weight: 700; font-size: 1rem; color: #1e40af; margin-bottom: 0.375rem;"></div>
+          <div id="latestNoticeMessage" style="color: #1f2937; font-size: 0.9375rem; line-height: 1.5;"></div>
+          <div id="latestNoticeTime" style="color: #6b7280; font-size: 0.75rem; margin-top: 0.5rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-section">
+      <div class="map-container" id="map"></div>
+    </div>
+
+    <div class="content-grid">
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-bus"></i>
+          Active Buses
+        </div>
+        <div id="busList">
+          <p style="color: #6b7280; font-size: 0.875rem;">Loading...</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-route"></i>
+          Trip Progress
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <span style="font-weight: 600; font-size: 0.9375rem;">Trip Progress</span>
+          <span id="progressText" style="font-weight: 600; color: #3b82f6; font-size: 0.9375rem;">0%</span>
+        </div>
+
+        <div class="progress-container">
+          <div id="tripProgress" class="progress-bar" style="width: 0%"></div>
+        </div>
+
+        <div
+          style="display: flex; justify-content: space-between; margin-top: 0.75rem; font-size: 0.8125rem; color: #6b7280;">
+          <div>
+            <i class="fas fa-route" style="font-size: 0.75rem; color: #3b82f6;"></i>
+            <span id="distanceCovered">0 km</span> covered
+          </div>
+          <div>
+            <i class="fas fa-flag-checkered" style="font-size: 0.75rem; color: #3b82f6;"></i>
+            <span id="distanceRemaining">0 km</span> remaining
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-map-marker-alt"></i>
+          Stops & ETA
+        </div>
+        <div id="stopsList">
+          <p style="color: #6b7280; font-size: 0.875rem;">No active bus</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-bell"></i>
+          Latest Notices
+        </div>
+        <div id="noticesList">
+          <p style="color: #6b7280; font-size: 0.875rem;">No notices</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    import { db, ref, onValue, get } from './js/config.js';
+    import { showToast, formatTime, formatDistance } from './js/utils.js';
+    import { calculateETA, calculateTripProgress } from './js/eta-calculator.js';
+    import { routeCoords, busStops } from './data/route.js';
+
+    // Theme toggle setup
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+    const themeIcon = themeToggle.querySelector('i');
+
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    html.setAttribute('data-theme', savedTheme);
+    themeIcon.className = savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      themeIcon.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    });
+
+    // Map initialization
+    const map = L.map('map').setView([25.069036, 91.396317], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '� OpenStreetMap'
+    }).addTo(map);
+
+    // Draw route
+    const routeLine = L.polyline(routeCoords, {
+      color: '#3b82f6',
+      weight: 4,
+      opacity: 0.8
+    }).addTo(map);
+
+    // Add stop markers with darker icons
+    busStops.forEach(stop => {
+      L.marker([stop.lat, stop.lng], {
+        icon: L.divIcon({
+          html: `<i class="fas fa-map-pin" style="color: #1e40af; font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));"></i>`,
+          className: '',
+          iconSize: [28, 28]
+        })
+      }).addTo(map).bindPopup(`<strong>${stop.name}</strong><br><span style="font-size: 0.875rem;">${stop.description}</span>`);
+    });
+
+    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+    // Progressive route coloring - track covered and remaining route
+    let coveredRoute = null;
+    let remainingRoute = null;
+
+    function updateRouteProgress(busPosition) {
+      if (!busPosition || !busPosition.lat || !busPosition.lng) return;
+
+      // Remove old route layers
+      if (coveredRoute) map.removeLayer(coveredRoute);
+      if (remainingRoute) map.removeLayer(remainingRoute);
+
+      // Find closest point on route
+      let closestIndex = 0;
+      let minDistance = Infinity;
+      routeCoords.forEach((coord, index) => {
+        const dist = Math.sqrt(Math.pow(coord[0] - busPosition.lat, 2) + Math.pow(coord[1] - busPosition.lng, 2));
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIndex = index;
+        }
+      });
+
+      // Split route
+      const passedCoords = routeCoords.slice(0, closestIndex + 1);
+      const futureCoords = routeCoords.slice(closestIndex);
+
+      // Draw dimmed passed route (gray)
+      if (passedCoords.length > 1) {
+        coveredRoute = L.polyline(passedCoords, { color: '#94a3b8', weight: 4, opacity: 0.4 }).addTo(map);
+      }
+
+      // Draw bright remaining route (blue)
+      if (futureCoords.length > 1) {
+        remainingRoute = L.polyline(futureCoords, { color: '#3b82f6', weight: 4, opacity: 0.8 }).addTo(map);
+      }
+    }
+
+    // Bus tracking
+    const busMarkers = {};
+    const speedTrackers = {};
+    let selectedBusId = null;
+
+    class SpeedTracker {
+      constructor() {
+        this.speeds = [];
+        this.maxHistory = 5;
+      }
+
+      addSpeed(speed) {
+        this.speeds.push(speed);
+        if (this.speeds.length > this.maxHistory) {
+          this.speeds.shift();
+        }
+      }
+
+      getHistory() {
+        return this.speeds;
+      }
+    }
+
+    // Listen to buses
+    const busesRef = ref(db, 'buses');
+    onValue(busesRef, (snapshot) => {
+      const busList = document.getElementById('busList');
+
+      if (!snapshot.exists()) {
+        busList.innerHTML = '<p style="color: #6b7280; font-size: 0.875rem;">No active buses</p>';
+        return;
+      }
+
+      const buses = snapshot.val();
+      busList.innerHTML = '';
+
+      Object.entries(buses).forEach(([busId, busData]) => {
+        if (!busData.active) return;
+
+        const busDiv = document.createElement('div');
+        busDiv.style.cssText = 'margin-bottom: 1rem; cursor: pointer; transition: opacity 0.2s;';
+
+        // Add hover effect
+        busDiv.addEventListener('mouseenter', () => busDiv.style.opacity = '0.7');
+        busDiv.addEventListener('mouseleave', () => busDiv.style.opacity = '1');
+
+        // Add click handler to focus this bus
+        busDiv.addEventListener('click', () => {
+          selectedBusId = busId;
+
+          // Pan to bus if it has a marker
+          if (busMarkers[busId]) {
+            const marker = busMarkers[busId];
+            map.setView(marker.getLatLng(), 15); // Zoom closer when clicking
+            marker.openPopup(); // Open popup to show bus info
+          }
+
+          showToast(`Tracking ${busData.name || 'Bus'} #${busData.number}`, 'info');
+        });
+
+        // Helper: 12-hour conversion
+        function to12Hour(time24) {
+          if (!time24) return time24;
+          const [hours, minutes] = time24.split(':');
+          const h = parseInt(hours);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h % 12 || 12;
+          return `${h12}:${minutes} ${ampm}`;
+        }
+
+        // Create combined box with bus name and departure time
+        let busHTML = `
+          <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%); border-radius: 10px; border-left: 4px solid #3b82f6;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+              <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; animation: pulse 2s ease-in-out infinite;"></span>
+              <span style="color: #1e40af; font-weight: 600; font-size: 0.9375rem;">${busData.name || 'Bus'} #${busData.number}</span>
+            </div>`;
+
+        if (busData.departureTime) {
+          busHTML += `
+            <div style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; background: rgba(59, 130, 246, 0.15); border-radius: 6px; font-size: 0.8125rem; color: #1e40af; font-weight: 600; border: 1px solid rgba(59, 130, 246, 0.2);">
+              <i class="fas fa-clock" style="font-size: 0.75rem;"></i>
+              <span>${to12Hour(busData.departureTime)}</span>
+            </div>`;
+        }
+
+        busHTML += '</div>';
+
+        busDiv.innerHTML = busHTML;
+        busList.appendChild(busDiv);
+
+        // Track ALL buses, not just the first one
+        trackBus(busId);
+
+        // Set first bus as selected for main view
+        if (!selectedBusId) {
+          selectedBusId = busId;
+        }
+      });
+    });
+
+    function trackBus(busId) {
+      console.log('trackBus called for:', busId);
+
+      if (!speedTrackers[busId]) {
+        speedTrackers[busId] = new SpeedTracker();
+      }
+
+      const trackingRef = ref(db, `tracking/${busId}`);
+      const busRef = ref(db, `buses/${busId}`);
+
+      // Get bus data ONCE first, then listen to tracking
+      get(busRef).then((busSnapshot) => {
+        const busData = busSnapshot.exists() ? busSnapshot.val() : { name: 'Bus', number: busId.split('_')[1] || '?' };
+
+        console.log('✅ Bus data loaded for', busId, ':', busData);
+
+        // Listen to tracking data with busData in scope
+        onValue(trackingRef, (snapshot) => {
+          if (!snapshot.exists()) {
+            console.log('⚠️ No tracking data for', busId);
+            return;
+          }
+
+          const data = snapshot.val();
+          console.log('📍 Tracking update for', busId, '- Name:', busData.name);
+
+          updateBusPosition(busId, data, busData);
+          updateETAs(busId, data);
+          updateTripProgress(data);
+        });
+      }).catch(error => {
+        console.error('❌ Error loading bus data for', busId, ':', error);
+      });
+    }
+
+    function updateBusPosition(busId, data, busData = {}) {
+      const { lat, lng, speed } = data;
+
+      if (busMarkers[busId]) {
+        map.removeLayer(busMarkers[busId]);
+      }
+
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          html: `<div class="bus-marker-pulse" style="background: #3b82f6; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(59,130,246,0.4);"><i class="fas fa-bus" style="color: white; font-size: 16px;"></i></div>`,
+          className: '',
+          iconSize: [32, 32]
+        })
+      }).addTo(map);
+
+      // Create popup with bus name - ALWAYS VISIBLE
+      const popup = L.popup({
+        closeButton: false,
+        autoClose: false,
+        closeOnClick: false,
+        className: 'bus-name-popup'
+      }).setContent(`
+        <div style="font-family: Anek Bangla, sans-serif; text-align: center;">
+          <strong style="font-size: 0.875rem; color: #1e40af;">${busData.name || 'Bus'} #${busData.number || busId.split('_')[1] || '?'}</strong>
+        </div>
+      `);
+
+      marker.bindPopup(popup).openPopup(); // Auto-open and keep open
+
+      busMarkers[busId] = marker;
+      speedTrackers[busId].addSpeed(speed);
+
+      if (busId === selectedBusId) {
+        map.panTo([lat, lng]);
+        updateRouteProgress({ lat, lng }); // Update route coloring
+      }
+
+      // Trigger pulse animation on update
+      setTimeout(() => {
+        const markerElement = marker.getElement();
+        if (markerElement) {
+          const pulseDiv = markerElement.querySelector('.bus-marker-pulse');
+          if (pulseDiv) {
+            pulseDiv.classList.remove('bus-marker-pulse');
+            void pulseDiv.offsetWidth; // Force reflow
+            pulseDiv.classList.add('bus-marker-pulse');
+          }
+        }
+      }, 50);
+    }
+
+    function updateETAs(busId, busData) {
+      console.log('📊 updateETAs called for', busId, 'with data:', busData);
+
+      const stopsList = document.getElementById('stopsList');
+      if (!stopsList) {
+        console.error('❌ stopsList element not found!');
+        return;
+      }
+
+      stopsList.innerHTML = '';
+
+      const speedHistory = speedTrackers[busId].getHistory();
+      console.log('Speed history:', speedHistory);
+
+      busStops.forEach((stop) => {
+        const etaData = calculateETA(
+          { lat: busData.lat, lng: busData.lng },
+          { lat: stop.lat, lng: stop.lng },
+          busData.speed,
+          speedHistory,
+          routeCoords
+        );
+
+        const stopDiv = document.createElement('div');
+        stopDiv.className = 'stop-item';
+
+        // Calculate and format ETA
+        let etaDisplay = '--';
+        if (etaData && typeof etaData.eta === 'number' && !isNaN(etaData.eta)) {
+          const minutes = Math.round(etaData.eta);
+          etaDisplay = minutes === 1 ? `${minutes} minute` : `${minutes} minutes`;
+        } else if (etaData && etaData.eta) {
+          // If eta is already a string (like "Arriving")
+          etaDisplay = etaData.eta;
+        }
+
+        const distance = etaData && etaData.distance ? formatDistance(etaData.distance) : '0 km';
+
+        console.log(`Stop ${stop.name}: ETA data =`, etaData, 'Display =', etaDisplay);
+
+        stopDiv.innerHTML = `
+          <div>
+            <div style="font-weight: 600; font-size: 0.875rem; color: var(--text-primary, #1f2937);">${stop.name}</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary, #6b7280); margin-top: 0.25rem;">${stop.description}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: 600; font-size: 0.875rem; color: #3b82f6;">${etaDisplay}</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary, #6b7280);">${distance}</div>
+          </div>
+        `;
+        stopsList.appendChild(stopDiv);
+      });
+
+      console.log('✅ ETAs updated, stops rendered:', busStops.length);
+    }
+
+    function updateTripProgress(data) {
+      console.log('🚌 updateTripProgress called with:', data);
+
+      const progress = calculateTripProgress(
+        { lat: data.lat, lng: data.lng },
+        routeCoords
+      );
+
+      console.log('📈 Trip progress calculated:', progress);
+
+      const progressBar = document.getElementById('tripProgress');
+      const progressText = document.getElementById('progressText');
+      const distanceCovered = document.getElementById('distanceCovered');
+      const distanceRemaining = document.getElementById('distanceRemaining');
+
+      // Update UI with validated values
+      const percentage = !isNaN(progress.percentage) ? progress.percentage : 0;
+      const covered = !isNaN(progress.covered) ? progress.covered * 1000 : 0;
+      const remaining = !isNaN(progress.remaining) ? progress.remaining * 1000 : 0;
+
+      if (progressBar) progressBar.style.width = `${percentage}%`;
+      if (progressText) progressText.textContent = `${Math.round(percentage)}%`;
+      if (distanceCovered) distanceCovered.textContent = formatDistance(covered);
+      if (distanceRemaining) distanceRemaining.textContent = formatDistance(remaining);
+
+      console.log('✅ Trip progress UI updated:', { percentage: Math.round(percentage), covered: `${(covered / 1000).toFixed(1)} km`, remaining: `${(remaining / 1000).toFixed(1)} km` });
+    }
+
+    // Notices - Show latest in banner above map, all in card
+    const noticesRef = ref(db, 'notices');
+    onValue(noticesRef, (snapshot) => {
+      const noticesList = document.getElementById('noticesList');
+      const latestNoticeBanner = document.getElementById('latestNoticeBanner');
+
+      if (!snapshot.exists()) {
+        noticesList.innerHTML = '<p style="color: #6b7280; font-size: 0.875rem;">No notices yet</p>';
+        latestNoticeBanner.style.display = 'none';
+        return;
+      }
+
+      const notices = [];
+      snapshot.forEach((child) => {
+        const notice = child.val();
+        notice.id = child.key;
+        notices.push(notice);
+      });
+
+      // Sort by timestamp (newest first)
+      notices.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Filter out expired notices
+      const now = Date.now();
+      const activeNotices = notices.filter(n => n.expiresAt > now);
+
+      if (activeNotices.length === 0) {
+        noticesList.innerHTML = '<p style="color: #6b7280; font-size: 0.875rem;">No active notices</p>';
+        latestNoticeBanner.style.display = 'none';
+        return;
+      }
+
+      // Show latest notice in banner above map
+      const latest = activeNotices[0];
+      document.getElementById('latestNoticeTitle').textContent = latest.title;
+      document.getElementById('latestNoticeMessage').textContent = latest.message;
+      document.getElementById('latestNoticeTime').innerHTML = `<i class="fas fa-clock"></i> ${formatTime(latest.timestamp)}`;
+
+      // Color based on priority
+      if (latest.priority === 'high') {
+        latestNoticeBanner.style.background = 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)';
+        latestNoticeBanner.style.borderLeftColor = '#ef4444';
+        document.getElementById('latestNoticeTitle').style.color = '#dc2626';
+      } else {
+        latestNoticeBanner.style.background = 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)';
+        latestNoticeBanner.style.borderLeftColor = '#3b82f6';
+        document.getElementById('latestNoticeTitle').style.color = '#1e40af';
+      }
+
+      latestNoticeBanner.style.display = 'block';
+
+      // Show all notices in card (limit to 5)
+      noticesList.innerHTML = '';
+      activeNotices.slice(0, 5).forEach((notice) => {
+        const noticeDiv = document.createElement('div');
+        noticeDiv.className = 'notice-item';
+
+        if (notice.priority === 'high') {
+          noticeDiv.style.borderLeftColor = '#ef4444';
+        }
+
+        noticeDiv.innerHTML = `
+          <div class="notice-title">${notice.title}</div>
+          <div class="notice-message">${notice.message}</div>
+          <div class="notice-time">
+            <i class="fas fa-clock"></i>
+            ${formatTime(notice.timestamp)}
+          </div>
+        `;
+        noticesList.appendChild(noticeDiv);
+      });
+    });
+
+    console.log('? SSTU Chaka tracker initialized');
+  </script>
+</body>
+
+</html>

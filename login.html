@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Driver login for SSTU Chaka">
+    <meta name="theme-color" content="#3b82f6">
+
+    <title>Driver Login - SSTU Chaka</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./css/animations.css">
+    <link rel="stylesheet" href="./css/toast.css">
+
+    <style>
+        * {
+            font-family: 'Anek Bangla', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #fafafa;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        [data-theme="dark"] body {
+            background: #111827;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 2rem;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+        }
+
+        [data-theme="dark"] .login-card {
+            background: #1f2937;
+            border-color: #374151;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-section img {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+
+        .logo-section h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #111827;
+            margin: 0 0 0.5rem 0;
+        }
+
+        [data-theme="dark"] .logo-section h1 {
+            color: white;
+        }
+
+        .logo-section p {
+            color: #6b7280;
+            margin: 0;
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        [data-theme="dark"] .form-label {
+            color: #d1d5db;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        [data-theme="dark"] .form-input {
+            background: #111827;
+            border-color: #374151;
+            color: white;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: #e5e7eb;
+        }
+
+        [data-theme="dark"] .divider::before {
+            background: #374151;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 1rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        [data-theme="dark"] .divider span {
+            background: #1f2937;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 1.5rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #2563eb;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 1rem;
+            }
+
+            .login-card {
+                padding: 2rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="theme-toggle" id="themeToggle" role="button">
+        <div class="theme-toggle-thumb">
+            <i class="fas fa-sun"></i>
+        </div>
+    </div>
+
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-section">
+                <img src="https://i.ibb.co.com/TBDbx9n4/20251213-025509-0000.png" alt="SSTU Chaka Logo">
+                <h1>SSTU Chaka</h1>
+                <p>Driver Login Portal</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-input" placeholder="driver@example.com" required
+                        autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="Enter your password" required
+                        autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn-primary" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Sign In</span>
+                </button>
+            </form>
+
+            <div class="divider">
+                <span>or</span>
+            </div>
+
+            <a href="./index.html" class="back-link">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to Tracker</span>
+            </a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initAuth, login } from './js/auth.js';
+        import { showToast } from './js/utils.js';
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        const themeIcon = themeToggle.querySelector('i');
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        html.setAttribute('data-theme', savedTheme);
+        themeIcon.className = savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeIcon.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+        });
+
+        // Check if already logged in
+        initAuth((user) => {
+            if (user) {
+                window.location.href = './admin.html';
+            }
+        });
+
+        // Login form
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showToast('Please fill in all fields', 'warning');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Signing in...</span>';
+
+            try {
+                const user = await login(email, password);
+                showToast('Login successful!', 'success');
+
+                // Redirect to admin panel
+                setTimeout(() => {
+                    window.location.href = './admin.html';
+                }, 500);
+            } catch (error) {
+                console.error('Login error:', error);
+
+                let message = 'Login failed';
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                    message = 'Invalid email or password';
+                } else if (error.code === 'auth/user-not-found') {
+                    message = 'No account found with this email';
+                } else if (error.code === 'auth/too-many-requests') {
+                    message = 'Too many attempts. Please try again later';
+                } else if (error.code === 'auth/network-request-failed') {
+                    message = 'Network error. Check your connection';
+                }
+
+                showToast(message, 'error');
+
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>Sign In</span>';
+            }
+        });
+
+        console.log('✅ Login page initialized');
+    </script>
+</body>
+
+</html>
