@@ -252,39 +252,63 @@ export const busStops = [
         lat: 25.069036,
         lng: 91.396317,
         icon: 'utensils',
-        description: 'Starting Point'
+        description: 'Stopage 1'
     },
     {
         id: 'stop_2',
-        name: 'Bridge Point',
-        lat: 25.058779,
-        lng: 91.39012,
+        name: 'Hajipara',
+        lat: 25.064778,
+        lng: 91.393299,
         icon: 'map-pin',
-        description: 'Major Landmark'
+        description: 'Stopage 2'
     },
     {
         id: 'stop_3',
-        name: 'City Center',
-        lat: 25.001029,
-        lng: 91.381887,
+        name: 'Mouchak Abashik Elaka',
+        lat: 25.058748,
+        lng: 91.390127,
         icon: 'building',
-        description: 'Downtown Area'
+        description: 'Stopage 3'
     },
     {
         id: 'stop_4',
-        name: 'University Gate',
-        lat: 24.960832,
-        lng: 91.398111,
+        name: 'New Bus-Stand',
+        lat: 25.051541,
+        lng: 91.389153,
         icon: 'university',
-        description: 'Near Campus'
+        description: 'Stopage 4'
     },
     {
         id: 'stop_5',
-        name: 'SSTU Main Gate',
-        lat: 24.938869,
-        lng: 91.419769,
+        name: 'SSTU Guest House',
+        lat: 24.954993,
+        lng: 91.397314,
         icon: 'graduation-cap',
-        description: 'Final Destination'
+        description: 'Stopage 5'
+    },
+    {
+        id: 'stop_6',
+        name: 'Shantiganj Bazar',
+        lat: 24.939398,
+        lng: 91.410635,
+        icon: 'graduation-cap',
+        description: 'Stopage 6'
+    },
+    {
+        id: 'stop_7',
+        name: 'Abdul Mojid College',
+        lat: 24.938887,
+        lng: 91.417629,
+        icon: 'graduation-cap',
+        description: 'Stopage 7'
+    },
+    {
+        id: 'stop_8',
+        name: 'SSTU Main Gate',
+        lat: 24.939265,
+        lng: 91.419438,
+        icon: 'graduation-cap',
+        description: 'Stopage 8'
     }
 ];
 
