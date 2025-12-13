@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 
 <head>
@@ -430,7 +430,7 @@
       <div class="card">
         <div class="card-title">
           <i class="fas fa-bus"></i>
-          Active Buses
+          Buses
         </div>
         <div id="busList">
           <p style="color: #6b7280; font-size: 0.875rem;">Loading...</p>
@@ -579,6 +579,7 @@
     const busMarkers = {};
     const speedTrackers = {};
     let selectedBusId = null;
+    const latestBusData = {}; // Store latest data for instant switching
 
     class SpeedTracker {
       constructor() {
@@ -630,6 +631,18 @@
             const marker = busMarkers[busId];
             map.setView(marker.getLatLng(), 15); // Zoom closer when clicking
             marker.openPopup(); // Open popup to show bus info
+          }
+
+          // Force update UI with latest data if available
+          if (latestBusData[busId]) {
+            const data = latestBusData[busId];
+            updateETAs(busId, data); // Pass data directly
+            updateTripProgress(data);
+
+            // Re-center map if we have coordinates
+            if (data.lat && data.lng) {
+              updateRouteProgress({ lat: data.lat, lng: data.lng });
+            }
           }
 
           showToast(`Tracking ${busData.name || 'Bus'} #${busData.number}`, 'info');
@@ -700,11 +713,17 @@
           }
 
           const data = snapshot.val();
+          latestBusData[busId] = data; // Store latest data
+
           console.log('📍 Tracking update for', busId, '- Name:', busData.name);
 
           updateBusPosition(busId, data, busData);
-          updateETAs(busId, data);
-          updateTripProgress(data);
+
+          // Only update UI panels if this is the currently selected bus
+          if (busId === selectedBusId) {
+            updateETAs(busId, data);
+            updateTripProgress(data);
+          }
         });
       }).catch(error => {
         console.error('❌ Error loading bus data for', busId, ':', error);
