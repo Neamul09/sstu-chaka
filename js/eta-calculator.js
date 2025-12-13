@@ -186,12 +186,8 @@ export function formatETA(eta, status) {
         return 'Calculating...';
     }
 
-    const range = calculateETARange(eta);
-    if (range.min !== range.max) {
-        return `${range.min}-${range.max} min`;
-    }
-
-    return `${eta} min`;
+    // User requested single time prediction instead of range
+    return `${Math.round(eta)} min`;
 }
 
 /**
