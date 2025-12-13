@@ -580,8 +580,9 @@
     // Bus tracking
     const busMarkers = {};
     const speedTrackers = {};
-    let selectedBusId = null;
+    let selectedBusId = localStorage.getItem('sstu_selected_bus'); // Load from storage
     const latestBusData = {}; // Store latest data for instant switching
+    let isFirstLoadFocus = true; // Flag to center map on load
 
     class SpeedTracker {
       constructor() {
@@ -614,8 +615,13 @@
       const buses = snapshot.val();
       busList.innerHTML = '';
 
+      let foundSelected = false;
+      let firstActiveBusId = null;
+
       Object.entries(buses).forEach(([busId, busData]) => {
         if (!busData.active) return;
+        if (!firstActiveBusId) firstActiveBusId = busId;
+        if (busId === selectedBusId) foundSelected = true;
 
         const busDiv = document.createElement('div');
         busDiv.style.cssText = 'margin-bottom: 1rem; cursor: pointer; transition: opacity 0.2s;';
@@ -627,6 +633,7 @@
         // Add click handler to focus this bus
         busDiv.addEventListener('click', () => {
           selectedBusId = busId;
+          localStorage.setItem('sstu_selected_bus', busId); // Save to storage
 
           // Pan to bus if it has a marker
           if (busMarkers[busId]) {
@@ -689,19 +696,25 @@
 
         // Track ALL buses, not just the first one
         trackBus(busId);
-
-        // Set first bus as selected for main view
-        if (!selectedBusId) {
-          selectedBusId = busId;
-          // Set initial headers
-          setTimeout(() => {
-            if (document.getElementById('tripBusName')) {
-              document.getElementById('tripBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
-              document.getElementById('etaBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
-            }
-          }, 500);
-        }
       });
+
+      // Determine final selected bus
+      if (!selectedBusId || !foundSelected) {
+        // Default to first active bus if saved one is invalid or missing
+        selectedBusId = firstActiveBusId;
+        if (selectedBusId) localStorage.setItem('sstu_selected_bus', selectedBusId);
+      }
+
+      // Initial header update if data already available (via sync or fast load)
+      if (selectedBusId && buses[selectedBusId]) {
+        const busData = buses[selectedBusId];
+        // Try to update immediately if elements exist
+        if (document.getElementById('tripBusName')) {
+          document.getElementById('tripBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
+          document.getElementById('etaBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
+          console.log('✅ Initial selection set to:', selectedBusId);
+        }
+      }
     });
 
     function trackBus(busId) {
@@ -778,7 +791,13 @@
       speedTrackers[busId].addSpeed(speed);
 
       if (busId === selectedBusId) {
-        map.panTo([lat, lng]);
+        // Handle first load focus
+        if (isFirstLoadFocus) {
+          map.setView([lat, lng], 15); // Force Zoom 15 on startup
+          isFirstLoadFocus = false; // Disable for future updates
+        } else {
+          map.panTo([lat, lng]); // Smooth pan for subsequent updates
+        }
         updateRouteProgress({ lat, lng }); // Update route coloring
       }
 
