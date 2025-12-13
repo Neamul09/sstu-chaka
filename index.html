@@ -840,20 +840,11 @@
 
         const stopDiv = document.createElement('div');
         stopDiv.className = 'stop-item';
+        // ... styling for normal stops ...
+        stopDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color, #f3f4f6);';
 
-        // Calculate and format ETA
-        let etaDisplay = '--';
-        if (etaData && typeof etaData.eta === 'number' && !isNaN(etaData.eta)) {
-          const minutes = Math.round(etaData.eta);
-          etaDisplay = minutes === 1 ? `${minutes} minute` : `${minutes} minutes`;
-        } else if (etaData && etaData.eta) {
-          // If eta is already a string (like "Arriving")
-          etaDisplay = etaData.eta;
-        }
-
-        const distance = etaData && etaData.distance ? formatDistance(etaData.distance) : '0 km';
-
-        console.log(`Stop ${stop.name}: ETA data =`, etaData, 'Display =', etaDisplay);
+        const etaDisplay = formatETA(etaData.eta, etaData.status);
+        const distance = formatDistance(etaData.distance);
 
         stopDiv.innerHTML = `
           <div>
