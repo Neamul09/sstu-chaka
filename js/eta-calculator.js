@@ -49,11 +49,15 @@ export function calculateETA(busPosition, stop, currentSpeed, speedHistory = [])
     // Calculate average speed (use last 5 readings)
     const avgSpeed = calculateAverageSpeed(currentSpeed, speedHistory);
 
+    // Use a minimum effective speed of 5 km/h for ETA to prevent infinity/massive spikes when stopped
+    // This assumes "Traffic/Stop" delay rather than "Never arriving"
+    const effectiveSpeed = Math.max(avgSpeed, 5);
+
     // Convert speed from km/h to m/s
-    const speedMps = (avgSpeed * 1000) / 3600;
+    const speedMps = (effectiveSpeed * 1000) / 3600;
 
     // Calculate ETA in minutes
-    const etaMinutes = speedMps > 0 ? (distanceToStop / speedMps / 60) : null;
+    const etaMinutes = distanceToStop / speedMps / 60;
 
     // Determine status
     let status = 'en-route';
@@ -62,11 +66,14 @@ export function calculateETA(busPosition, stop, currentSpeed, speedHistory = [])
         else if (etaMinutes < 5) status = 'nearby';
     }
 
+    const isNext = status !== 'passed' && distanceToStop > 0;
+
     return {
         eta: etaMinutes ? Math.round(etaMinutes) : null,
         distance: Math.round(distanceToStop),
         status: status,
-        speed: avgSpeed
+        speed: avgSpeed,
+        isNext: isNext
     };
 }
 
@@ -126,11 +133,11 @@ function calculateAverageSpeed(currentSpeed, speedHistory) {
     // Add current speed
     recentSpeeds.push(currentSpeed);
 
-    // Filter out invalid speeds
-    const validSpeeds = recentSpeeds.filter(s => s > 0 && s < 100);
+    // Filter out invalid speeds (e.g. GPS glitches > 150km/h), but KEEP 0 (stopped)
+    const validSpeeds = recentSpeeds.filter(s => s >= 0 && s < 150);
 
     if (validSpeeds.length === 0) {
-        return 25; // Default
+        return 25; // Default if no valid data
     }
 
     // Calculate average
