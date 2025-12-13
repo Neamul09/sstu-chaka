@@ -440,7 +440,8 @@
       <div class="card">
         <div class="card-title">
           <i class="fas fa-route"></i>
-          Trip Progress
+          Trip Progress <span id="tripBusName"
+            style="color: #3b82f6; font-weight: 700; margin-left: 0.5rem; font-size: 0.8rem;"></span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
           <span style="font-weight: 600; font-size: 0.9375rem;">Trip Progress</span>
@@ -467,7 +468,8 @@
       <div class="card">
         <div class="card-title">
           <i class="fas fa-map-marker-alt"></i>
-          Stops & ETA
+          Stops & ETA <span id="etaBusName"
+            style="color: #3b82f6; font-weight: 700; margin-left: 0.5rem; font-size: 0.8rem;"></span>
         </div>
         <div id="stopsList">
           <p style="color: #6b7280; font-size: 0.875rem;">No active bus</p>
@@ -645,6 +647,12 @@
             }
           }
 
+          // Update header names
+          document.getElementById('tripBusName').textContent = `(${busData.name || 'Bus'}`;
+          document.getElementById('tripBusName').textContent += ` #${busData.number})`;
+          document.getElementById('etaBusName').textContent = `(${busData.name || 'Bus'}`;
+          document.getElementById('etaBusName').textContent += ` #${busData.number})`;
+
           showToast(`Tracking ${busData.name || 'Bus'} #${busData.number}`, 'info');
         });
 
@@ -685,6 +693,13 @@
         // Set first bus as selected for main view
         if (!selectedBusId) {
           selectedBusId = busId;
+          // Set initial headers
+          setTimeout(() => {
+            if (document.getElementById('tripBusName')) {
+              document.getElementById('tripBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
+              document.getElementById('etaBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
+            }
+          }, 500);
         }
       });
     });
