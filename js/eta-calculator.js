@@ -13,12 +13,12 @@ import { routeCoords } from '../data/route.js';
  * @param {Array} speedHistory - Array of recent speeds for averaging
  * @returns {Object} {eta: minutes, distance: meters, status: string}
  */
-export function calculateETA(busPosition, stop, currentSpeed, speedHistory = []) {
+export function calculateETA(busPosition, stop, currentSpeed, speedHistory = [], routePath = routeCoords) {
     // Find bus position on route
-    const busOnRoute = findClosestPointOnRoute([busPosition.lat, busPosition.lng], routeCoords);
+    const busOnRoute = findClosestPointOnRoute([busPosition.lat, busPosition.lng], routePath);
 
     // Find stop position on route
-    const stopOnRoute = findClosestPointOnRoute([stop.lat, stop.lng], routeCoords);
+    const stopOnRoute = findClosestPointOnRoute([stop.lat, stop.lng], routePath);
 
     // If bus is past the stop
     if (busOnRoute.index >= stopOnRoute.index) {
@@ -43,7 +43,8 @@ export function calculateETA(busPosition, stop, currentSpeed, speedHistory = [])
         busOnRoute.point,
         busOnRoute.index,
         stopOnRoute.point,
-        stopOnRoute.index
+        stopOnRoute.index,
+        routePath // Pass path to helper
     );
 
     // Calculate average speed (use last 5 readings)
@@ -83,31 +84,32 @@ export function calculateETA(busPosition, stop, currentSpeed, speedHistory = [])
  * @param {number} startIndex
  * @param {Array} endPoint - [lat, lng]
  * @param {number} endIndex
+ * @param {Array} routePath - Array of route coordinates
  * @returns {number} Distance in meters
  */
-function calculateRouteDistanceToStop(startPoint, startIndex, endPoint, endIndex) {
+function calculateRouteDistanceToStop(startPoint, startIndex, endPoint, endIndex, routePath) {
     let distance = 0;
 
     // Distance from start point to next route vertex
-    if (startIndex < routeCoords.length - 1) {
+    if (startIndex < routePath.length - 1) {
         distance += calculateDistance(
             startPoint[0], startPoint[1],
-            routeCoords[startIndex + 1][0], routeCoords[startIndex + 1][1]
+            routePath[startIndex + 1][0], routePath[startIndex + 1][1]
         );
     }
 
     // Sum all intermediate segments
     for (let i = startIndex + 1; i < endIndex; i++) {
         distance += calculateDistance(
-            routeCoords[i][0], routeCoords[i][1],
-            routeCoords[i + 1][0], routeCoords[i + 1][1]
+            routePath[i][0], routePath[i][1],
+            routePath[i + 1][0], routePath[i + 1][1]
         );
     }
 
     // Distance from last route vertex to end point
-    if (endIndex < routeCoords.length) {
+    if (endIndex < routePath.length) {
         distance += calculateDistance(
-            routeCoords[endIndex][0], routeCoords[endIndex][1],
+            routePath[endIndex][0], routePath[endIndex][1],
             endPoint[0], endPoint[1]
         );
     }
