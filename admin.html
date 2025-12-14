@@ -455,15 +455,23 @@
             <!-- Bus Departure Time -->
             <div style="padding: 1rem; background: #eff6ff; border-radius: 8px; border-left: 3px solid #3b82f6;">
               <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.75rem; color: #1e40af;">
-                <i class="fas fa-clock"></i> Departure Time (12-hour)
+                <i class="fas fa-clock"></i> Departure Times
               </div>
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="time" id="busTimeInput" class="form-input" style="flex: 1; margin: 0; padding: 0.5rem;">
-                <button id="setBusTimeBtn" class="btn btn-primary"
-                  style="white-space: nowrap; margin: 0; padding: 0.5rem 1rem;">
-                  <i class="fas fa-check"></i> Set
-                </button>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div>
+                  <label style="font-size: 0.75rem; color: #6b7280;">Up Trip (Morning)</label>
+                  <input type="time" id="upTimeInput" class="form-input">
+                </div>
+                <div>
+                  <label style="font-size: 0.75rem; color: #6b7280;">Return Trip (Afternoon)</label>
+                  <input type="time" id="returnTimeInput" class="form-input">
+                </div>
               </div>
+
+              <button id="setBusTimeBtn" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-check"></i> Save Schedule
+              </button>
               <div id="currentBusTime" style="margin-top: 0.5rem; font-size: 0.75rem; color: #6b7280;">
                 No time set
               </div>
@@ -550,14 +558,22 @@
         themeIcon.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
       });
 
-      // Helper: Convert to 12-hour format
-      function to12Hour(time24) {
-        if (!time24) return time24;
-        const [hours, minutes] = time24.split(':');
-        const h = parseInt(hours);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        return `${h12}:${minutes} ${ampm}`;
+      // Helper: Convert to 12-hour format (supports multiple)
+      // Helper: Convert to 12-hour format (supports multiple)
+      function to12Hour(timeStr) {
+        if (!timeStr) return 'Not set';
+        return timeStr.split(',').map(t => {
+          t = t.trim();
+          let [hours, minutes] = t.split(':');
+          if (!minutes) minutes = '00'; // Safety
+
+          const h = parseInt(hours);
+          if (isNaN(h)) return t;
+
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h % 12 || 12;
+          return `${h12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        }).join(', ');
       }
 
       // Load Bus Name
@@ -596,27 +612,69 @@
         if (!currentUser?.assignedBus) return;
         const busRef = ref(db, `buses/${currentUser.assignedBus}`);
         const snapshot = await get(busRef);
+
         if (snapshot.exists() && snapshot.val().departureTime) {
-          const time = snapshot.val().departureTime;
-          document.getElementById('busTimeInput').value = time;
+          const timeStr = snapshot.val().departureTime;
+          const times = timeStr.split(',').map(t => t.trim());
+
+          // Populate inputs (Try to guess Up vs Return based on time, or just order)
+          // Simple assumption: 1st is Up, 2nd is Return usually. But let's check hours.
+          // Actually, let's just fill them in order for now, or by logic?
+          // Logic: < 12 is Up, >= 12 is Return
+
+          let upTime = '';
+          let returnTime = '';
+
+          times.forEach(t => {
+            const [h] = t.split(':').map(Number);
+            if (h < 12) upTime = t;
+            else returnTime = t;
+          });
+
+          // Fallback: if multiple same-period times, just fill first empty
+          if (!upTime && times[0]) upTime = times[0];
+          if (!returnTime && times[1]) returnTime = times[1];
+
+          document.getElementById('upTimeInput').value = upTime;
+          document.getElementById('returnTimeInput').value = returnTime;
+
           document.getElementById('currentBusTime').innerHTML =
-            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${to12Hour(time)}`;
+            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${to12Hour(timeStr)}`;
         }
       }
 
       // Set Bus Time
       document.getElementById('setBusTimeBtn').addEventListener('click', async () => {
-        const busTime = document.getElementById('busTimeInput').value;
-        if (!busTime) { showToast('Select a time', 'warning'); return; }
+        const upTime = document.getElementById('upTimeInput').value;
+        const returnTime = document.getElementById('returnTimeInput').value;
+
+        if (!upTime && !returnTime) { showToast('Set at least one time', 'warning'); return; }
+
+        // Combine sorted
+        const timeList = [];
+        if (upTime) timeList.push(upTime);
+        if (returnTime) timeList.push(returnTime);
+        timeList.sort(); // Ensure order (morning first)
+
+        const combinedTime = timeList.join(', ');
+
         if (!currentUser?.assignedBus) { showToast('No bus assigned', 'warning'); return; }
         try {
           const busRef = ref(db, `buses/${currentUser.assignedBus}`);
           const snapshot = await get(busRef);
           const busData = snapshot.exists() ? snapshot.val() : {};
-          await set(busRef, { ...busData, departureTime: busTime, active: true, name: busData.name || 'Bus', number: busData.number || '1' });
-          showToast('Time set!', 'success');
+
+          await set(busRef, {
+            ...busData,
+            departureTime: combinedTime,
+            active: true,
+            name: busData.name || 'Bus',
+            number: busData.number || '1'
+          });
+
+          showToast('Schedule updated!', 'success');
           document.getElementById('currentBusTime').innerHTML =
-            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${to12Hour(busTime)}`;
+            `<i class="fas fa-check-circle" style="color: #10b981;"></i> Current: ${to12Hour(combinedTime)}`;
         } catch (error) { console.error(error); showToast('Failed', 'error'); }
       });
 
