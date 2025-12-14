@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 
 <head>
@@ -370,6 +370,11 @@
       }
     }
 
+    .custom-div-icon {
+      background: none !important;
+      border: none !important;
+    }
+
     @media (max-width: 768px) {
       .container {
         padding: 1rem;
@@ -423,7 +428,13 @@
     </div>
 
     <div class="map-section">
-      <div class="map-container" id="map"></div>
+      <div class="map-container" id="map">
+        <!-- Resume Following Button (Hidden by default) -->
+        <button id="resumeFollowingBtn" onclick="resumeFollowing()"
+          style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; transition: all 0.2s;">
+          <i class="fas fa-location-arrow"></i> Resume Tracking
+        </button>
+      </div>
     </div>
 
     <div class="content-grid">
@@ -491,10 +502,10 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script type="module">
-    import { db, ref, onValue, get } from './js/config.js';
-    import { showToast, formatTime, formatDistance } from './js/utils.js';
-    import { calculateETA, calculateTripProgress, formatETA } from './js/eta-calculator.js';
-    import { routeCoords, busStops } from './data/route.js';
+    import { db, ref, onValue, get } from './js/config.js?v=2';
+    import { showToast, formatTime, formatDistance } from './js/utils.js?v=2';
+    import { calculateETA, calculateTripProgress, formatETA } from './js/eta-calculator.js?v=2';
+    import { routeCoords, busStops } from './data/route.js?v=2';
 
     // Theme toggle setup
     const themeToggle = document.getElementById('themeToggle');
@@ -532,13 +543,14 @@
       L.marker([stop.lat, stop.lng], {
         icon: L.divIcon({
           html: `<i class="fas fa-map-pin" style="color: #1e40af; font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));"></i>`,
-          className: '',
+          className: 'custom-div-icon',
           iconSize: [28, 28]
         })
       }).addTo(map).bindPopup(`<strong>${stop.name}</strong><br><span style="font-size: 0.875rem;">${stop.description}</span>`);
     });
 
-    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+    // REMOVED: map.fitBounds - caused visual fighting. 
+    // We strictly wait for bus data to center.
 
     // Progressive route coloring - track covered and remaining route
     let coveredRoute = null;
@@ -577,242 +589,241 @@
       }
     }
 
-    // Bus tracking
-    const busMarkers = {};
-    const speedTrackers = {};
-    let selectedBusId = localStorage.getItem('sstu_selected_bus'); // Load from storage
-    const latestBusData = {}; // Store latest data for instant switching
-    let isFirstLoadFocus = true; // Flag to center map on load
+    // --- CENTRALIZED STATE MANAGEMENT ---
+    const appState = {
+      selectedBusId: localStorage.getItem('sstu_selected_bus'),
+      isUserInteracting: false,
+      isProgrammaticPan: false,
+      buses: {}, // Cache bus data
+      markers: {},
+      speedTrackers: {}
+    };
 
-    class SpeedTracker {
-      constructor() {
-        this.speeds = [];
-        this.maxHistory = 5;
+    // State Actions
+    function selectBus(busId) {
+      console.log('🎯 Selecting bus:', busId);
+      appState.selectedBusId = busId;
+      localStorage.setItem('sstu_selected_bus', busId);
+
+      // Reset interaction state to resume following
+      appState.isUserInteracting = false;
+      const btn = document.getElementById('resumeFollowingBtn');
+      if (btn) btn.style.display = 'none';
+
+      // Update UI Highlights
+      document.querySelectorAll('.bus-item').forEach(el => {
+        el.style.border = el.dataset.busId === busId ? '2px solid #2563eb' : 'none';
+        el.style.borderRadius = el.dataset.busId === busId ? '12px' : '10px';
+      });
+
+      // Show toast
+      const bus = appState.buses[busId];
+      if (bus) {
+        showToast(`Tracking ${bus.name || 'Bus'}`, 'info');
+        updateHeaderInfo(bus);
       }
 
-      addSpeed(speed) {
-        this.speeds.push(speed);
-        if (this.speeds.length > this.maxHistory) {
-          this.speeds.shift();
-        }
-      }
-
-      getHistory() {
-        return this.speeds;
-      }
+      // Force instant map update
+      centerMapOnSelected();
     }
 
-    // Listen to buses
+    function resumeFollowing() {
+      appState.isUserInteracting = false;
+      const btn = document.getElementById('resumeFollowingBtn');
+      if (btn) btn.style.display = 'none';
+      centerMapOnSelected();
+      showToast('Resumed auto-tracking', 'info');
+    }
+    // Expose for HTML access
+    window.resumeFollowing = resumeFollowing;
+
+    function centerMapOnSelected() {
+      const busId = appState.selectedBusId;
+      if (!busId || !appState.markers[busId]) return;
+
+      const marker = appState.markers[busId];
+
+      appState.isProgrammaticPan = true;
+      map.setView(marker.getLatLng(), 15);
+      marker.openPopup();
+
+      setTimeout(() => appState.isProgrammaticPan = false, 800);
+    }
+
+    // Map Interaction Listeners
+    map.on('dragstart', (e) => {
+      if (appState.isProgrammaticPan) {
+        console.log('🤖 Programmatic pan ignored');
+        return;
+      }
+      if (!appState.isUserInteracting) {
+        appState.isUserInteracting = true;
+        document.getElementById('resumeFollowingBtn').style.display = 'block';
+        console.log('✋ User moved map (dragstart) - paused auto-follow');
+      }
+    });
+    // We strictly use dragstart to detect intent. Zoom might happen programmatically or naturally.
+
+    // --- DATA HANDLING ---
     const busesRef = ref(db, 'buses');
     onValue(busesRef, (snapshot) => {
       const busList = document.getElementById('busList');
-
       if (!snapshot.exists()) {
-        busList.innerHTML = '<p style="color: #6b7280; font-size: 0.875rem;">No active buses</p>';
+        busList.innerHTML = '<p class="text-gray">No active buses</p>';
         return;
       }
 
       const buses = snapshot.val();
-      busList.innerHTML = '';
+      busList.innerHTML = ''; // Rebuild list safely
 
-      let foundSelected = false;
-      let firstActiveBusId = null;
+      let firstActive = null;
 
       Object.entries(buses).forEach(([busId, busData]) => {
         if (!busData.active) return;
-        if (!firstActiveBusId) firstActiveBusId = busId;
-        if (busId === selectedBusId) foundSelected = true;
+        if (!firstActive) firstActive = busId;
 
+        // Update Cache
+        appState.buses[busId] = busData;
+
+        // Render Item
         const busDiv = document.createElement('div');
-        busDiv.style.cssText = 'margin-bottom: 1rem; cursor: pointer; transition: opacity 0.2s;';
+        busDiv.className = 'bus-item'; // Class for easy selection
+        busDiv.dataset.busId = busId; // Data attr for lookup
+        busDiv.style.cssText = 'margin-bottom: 1rem; cursor: pointer; transition: all 0.2s; border-radius: 10px;';
 
-        // Add hover effect
-        busDiv.addEventListener('mouseenter', () => busDiv.style.opacity = '0.7');
-        busDiv.addEventListener('mouseleave', () => busDiv.style.opacity = '1');
-
-        // Add click handler to focus this bus
-        busDiv.addEventListener('click', () => {
-          selectedBusId = busId;
-          localStorage.setItem('sstu_selected_bus', busId); // Save to storage
-
-          // Pan to bus if it has a marker
-          if (busMarkers[busId]) {
-            const marker = busMarkers[busId];
-            map.setView(marker.getLatLng(), 15); // Zoom closer when clicking
-            marker.openPopup(); // Open popup to show bus info
-          }
-
-          // Force update UI with latest data if available
-          if (latestBusData[busId]) {
-            const data = latestBusData[busId];
-            updateETAs(busId, data); // Pass data directly
-            updateTripProgress(data);
-
-            // Re-center map if we have coordinates
-            if (data.lat && data.lng) {
-              updateRouteProgress({ lat: data.lat, lng: data.lng });
-            }
-          }
-
-          // Update header names
-          document.getElementById('tripBusName').textContent = `(${busData.name || 'Bus'}`;
-          document.getElementById('tripBusName').textContent += ` #${busData.number})`;
-          document.getElementById('etaBusName').textContent = `(${busData.name || 'Bus'}`;
-          document.getElementById('etaBusName').textContent += ` #${busData.number})`;
-
-          showToast(`Tracking ${busData.name || 'Bus'} #${busData.number}`, 'info');
-        });
-
-        // Helper: 12-hour conversion
-        function to12Hour(time24) {
-          if (!time24) return time24;
-          const [hours, minutes] = time24.split(':');
-          const h = parseInt(hours);
-          const ampm = h >= 12 ? 'PM' : 'AM';
-          const h12 = h % 12 || 12;
-          return `${h12}:${minutes} ${ampm}`;
+        // Highlight logic during render
+        if (busId === appState.selectedBusId) {
+          busDiv.style.border = '2px solid #2563eb';
+          busDiv.style.borderRadius = '12px';
         }
 
-        // Create combined box with bus name and departure time
-        let busHTML = `
-          <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%); border-radius: 10px; border-left: 4px solid #3b82f6;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-              <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; animation: pulse 2s ease-in-out infinite;"></span>
-              <span style="color: #1e40af; font-weight: 600; font-size: 0.9375rem;">${busData.name || 'Bus'} #${busData.number}</span>
-            </div>`;
+        busDiv.addEventListener('click', () => selectBus(busId));
 
-        if (busData.departureTime) {
-          busHTML += `
-            <div style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; background: rgba(59, 130, 246, 0.15); border-radius: 6px; font-size: 0.8125rem; color: #1e40af; font-weight: 600; border: 1px solid rgba(59, 130, 246, 0.2);">
-              <i class="fas fa-clock" style="font-size: 0.75rem;"></i>
-              <span>${to12Hour(busData.departureTime)}</span>
-            </div>`;
-        }
+        // Content
+        busDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%); border-radius: inherit; border-left: 4px solid #3b82f6;">
+             <div style="flex: 1; font-weight: 600; color: #1e40af;">
+               ${busData.name || 'Bus'} #${busData.number}
+             </div>
+             ${busData.departureTime ? `<span style="font-size: 0.8rem; color: #1e40af; background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px;">${formatTime12(busData.departureTime)}</span>` : ''}
+          </div>
+        `;
 
-        busHTML += '</div>';
-
-        busDiv.innerHTML = busHTML;
         busList.appendChild(busDiv);
-
-        // Track ALL buses, not just the first one
-        trackBus(busId);
+        initBusTracking(busId);
       });
 
-      // Determine final selected bus
-      if (!selectedBusId || !foundSelected) {
-        // Default to first active bus if saved one is invalid or missing
-        selectedBusId = firstActiveBusId;
-        if (selectedBusId) localStorage.setItem('sstu_selected_bus', selectedBusId);
-      }
-
-      // Initial header update if data already available (via sync or fast load)
-      if (selectedBusId && buses[selectedBusId]) {
-        const busData = buses[selectedBusId];
-        // Try to update immediately if elements exist
-        if (document.getElementById('tripBusName')) {
-          document.getElementById('tripBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
-          document.getElementById('etaBusName').textContent = `(${busData.name || 'Bus'} #${busData.number})`;
-          console.log('✅ Initial selection set to:', selectedBusId);
-        }
+      // Default selection ONLY if none exists
+      if (!appState.selectedBusId && firstActive) {
+        selectBus(firstActive);
       }
     });
 
-    function trackBus(busId) {
-      console.log('trackBus called for:', busId);
+    const trackedBuses = new Set();
+    function initBusTracking(busId) {
+      if (trackedBuses.has(busId)) return;
+      trackedBuses.add(busId);
 
-      if (!speedTrackers[busId]) {
-        speedTrackers[busId] = new SpeedTracker();
+      if (!appState.speedTrackers[busId]) {
+        appState.speedTrackers[busId] = new SpeedTracker();
       }
 
-      const trackingRef = ref(db, `tracking/${busId}`);
-      const busRef = ref(db, `buses/${busId}`);
+      onValue(ref(db, `tracking/${busId}`), (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
+        updateBusMarker(busId, data);
 
-      // Get bus data ONCE first, then listen to tracking
-      get(busRef).then((busSnapshot) => {
-        const busData = busSnapshot.exists() ? busSnapshot.val() : { name: 'Bus', number: busId.split('_')[1] || '?' };
+        // UI Updates if selected
+        if (busId === appState.selectedBusId) {
+          updateETAs(busId, data);
+          updateTripProgress(data);
 
-        console.log('✅ Bus data loaded for', busId, ':', busData);
-
-        // Listen to tracking data with busData in scope
-        onValue(trackingRef, (snapshot) => {
-          if (!snapshot.exists()) {
-            console.log('⚠️ No tracking data for', busId);
-            return;
+          // AUTO-FOLLOW LOGIC
+          if (!appState.isUserInteracting) {
+            const marker = appState.markers[busId];
+            if (marker) {
+              appState.isProgrammaticPan = true;
+              map.panTo(marker.getLatLng()); // Smooth pan
+              updateRouteProgress(data); // Route line updates
+              setTimeout(() => appState.isProgrammaticPan = false, 500);
+            }
           }
-
-          const data = snapshot.val();
-          latestBusData[busId] = data; // Store latest data
-
-          console.log('📍 Tracking update for', busId, '- Name:', busData.name);
-
-          updateBusPosition(busId, data, busData);
-
-          // Only update UI panels if this is the currently selected bus
-          if (busId === selectedBusId) {
-            updateETAs(busId, data);
-            updateTripProgress(data);
-          }
-        });
-      }).catch(error => {
-        console.error('❌ Error loading bus data for', busId, ':', error);
+        }
       });
     }
 
-    function updateBusPosition(busId, data, busData = {}) {
+    function updateBusMarker(busId, data) {
       const { lat, lng, speed } = data;
+      appState.speedTrackers[busId].addSpeed(speed);
 
-      if (busMarkers[busId]) {
-        map.removeLayer(busMarkers[busId]);
+      // Reuse existing marker if available
+      if (appState.markers[busId]) {
+        const marker = appState.markers[busId];
+        const newLatLng = new L.LatLng(lat, lng);
+        marker.setLatLng(newLatLng);
+
+        // Trigger pulse animation
+        triggerPulse(marker);
+
+        // Ensure popup content is updated if needed (optional, but good for bus name updates)
+        // For now, just keeping position is enough. Popup content is static name.
+        return;
       }
 
+      // Add new marker
       const marker = L.marker([lat, lng], {
         icon: L.divIcon({
           html: `<div class="bus-marker-pulse" style="background: #3b82f6; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(59,130,246,0.4);"><i class="fas fa-bus" style="color: white; font-size: 16px;"></i></div>`,
-          className: '',
+          className: 'custom-div-icon',
           iconSize: [32, 32]
         })
       }).addTo(map);
 
-      // Create popup with bus name - ALWAYS VISIBLE
-      const popup = L.popup({
-        closeButton: false,
-        autoClose: false,
-        closeOnClick: false,
-        className: 'bus-name-popup'
-      }).setContent(`
-        <div style="font-family: Anek Bangla, sans-serif; text-align: center;">
-          <strong style="font-size: 0.875rem; color: #1e40af;">${busData.name || 'Bus'} #${busData.number || busId.split('_')[1] || '?'}</strong>
-        </div>
-      `);
+      // Popup
+      const busName = appState.buses[busId]?.name || 'Bus';
+      marker.bindPopup(`<div style="text-align:center; font-weight:bold; color:#1e40af">${busName}</div>`, {
+        closeButton: false, autoClose: false, closeOnClick: false
+      });
+      // Note: We don't auto-open popup on creation unless selected (handled by caller or centerMapOnSelected)
 
-      marker.bindPopup(popup).openPopup(); // Auto-open and keep open
+      appState.markers[busId] = marker;
+      triggerPulse(marker);
+    }
 
-      busMarkers[busId] = marker;
-      speedTrackers[busId].addSpeed(speed);
-
-      if (busId === selectedBusId) {
-        // Handle first load focus
-        if (isFirstLoadFocus) {
-          map.setView([lat, lng], 15); // Force Zoom 15 on startup
-          isFirstLoadFocus = false; // Disable for future updates
-        } else {
-          map.panTo([lat, lng]); // Smooth pan for subsequent updates
-        }
-        updateRouteProgress({ lat, lng }); // Update route coloring
-      }
-
-      // Trigger pulse animation on update
+    // Helper: Trigger pulse animation
+    function triggerPulse(marker) {
       setTimeout(() => {
         const markerElement = marker.getElement();
         if (markerElement) {
           const pulseDiv = markerElement.querySelector('.bus-marker-pulse');
           if (pulseDiv) {
-            pulseDiv.classList.remove('bus-marker-pulse');
+            pulseDiv.style.animation = 'none';
             void pulseDiv.offsetWidth; // Force reflow
-            pulseDiv.classList.add('bus-marker-pulse');
+            pulseDiv.style.animation = 'markerPulse 1s ease-out';
           }
         }
       }, 50);
+    }
+
+    // Helper: 12h time
+    function formatTime12(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      const hour = parseInt(h);
+      return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+    }
+
+    function updateHeaderInfo(bus) {
+      const el1 = document.getElementById('tripBusName');
+      const el2 = document.getElementById('etaBusName');
+      if (el1) el1.textContent = `(${bus.name})`;
+      if (el2) el2.textContent = `(${bus.name})`;
+    }
+
+    class SpeedTracker {
+      constructor() { this.speeds = []; this.maxHistory = 5; }
+      addSpeed(s) { this.speeds.push(s); if (this.speeds.length > 5) this.speeds.shift(); }
+      getHistory() { return this.speeds; }
     }
 
     function updateETAs(busId, busData) {
@@ -826,10 +837,15 @@
 
       stopsList.innerHTML = '';
 
-      const speedHistory = speedTrackers[busId].getHistory();
-      console.log('Speed history:', speedHistory);
+      // FIX: access speedTrackers from appState
+      const tracker = appState.speedTrackers[busId];
+      const speedHistory = tracker ? tracker.getHistory() : [];
+      // console.log('Speed history:', speedHistory);
+
+
 
       busStops.forEach((stop) => {
+        // Dynamic ETA
         const etaData = calculateETA(
           { lat: busData.lat, lng: busData.lng },
           { lat: stop.lat, lng: stop.lng },
@@ -838,9 +854,32 @@
           routeCoords
         );
 
+        // Official Schedule Calculation
+        let officialTimeHTML = '';
+        const staticBusData = appState.buses[busId];
+        const departureTime = staticBusData ? staticBusData.departureTime : null;
+
+        if (departureTime && stop.offsetMinutes !== undefined) {
+          const startTimeParts = departureTime.split(':');
+          const startMin = parseInt(startTimeParts[0]) * 60 + parseInt(startTimeParts[1]);
+          const stopMin = startMin + stop.offsetMinutes;
+
+          const h = Math.floor(stopMin / 60);
+          const m = stopMin % 60;
+          const ampm = h >= 12 && h < 24 ? 'PM' : 'AM'; // Handle 24h wrap roughly
+          const h12 = h % 12 || 12;
+          // Format: HH:MM AM/PM
+          const timeStr = `${h12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${ampm}`;
+
+          officialTimeHTML = `<div style="font-size: 0.75rem; color: #1e40af; font-weight: 600; background: #eefff0; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px;">
+            <i class="fas fa-clock" style="margin-right: 4px;"></i>${timeStr}
+          </div>`;
+        } else if (stop.offsetMinutes !== undefined) {
+          officialTimeHTML = `<small style="color:#6b7280">+${stop.offsetMinutes} min from start</small>`;
+        }
+
         const stopDiv = document.createElement('div');
         stopDiv.className = 'stop-item';
-        // ... styling for normal stops ...
         stopDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color, #f3f4f6);';
 
         const etaDisplay = formatETA(etaData.eta, etaData.status);
@@ -850,6 +889,7 @@
           <div>
             <div style="font-weight: 600; font-size: 0.875rem; color: var(--text-primary, #1f2937);">${stop.name}</div>
             <div style="font-size: 0.75rem; color: var(--text-secondary, #6b7280); margin-top: 0.25rem;">${stop.description}</div>
+            ${officialTimeHTML}
           </div>
           <div style="text-align: right;">
             <div style="font-weight: 600; font-size: 0.875rem; color: #3b82f6;">${etaDisplay}</div>
@@ -858,7 +898,6 @@
         `;
         stopsList.appendChild(stopDiv);
       });
-
       console.log('✅ ETAs updated, stops rendered:', busStops.length);
     }
 
