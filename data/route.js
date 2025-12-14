@@ -252,7 +252,8 @@ export const busStops = [
         lat: 25.069036,
         lng: 91.396317,
         icon: 'utensils',
-        description: 'Stopage 1'
+        description: 'Start Point',
+        offsetMinutes: 0
     },
     {
         id: 'stop_2',
@@ -260,7 +261,8 @@ export const busStops = [
         lat: 25.064778,
         lng: 91.393299,
         icon: 'map-pin',
-        description: 'Stopage 2'
+        description: 'Stopage 2',
+        offsetMinutes: 5
     },
     {
         id: 'stop_3',
@@ -268,7 +270,8 @@ export const busStops = [
         lat: 25.058748,
         lng: 91.390127,
         icon: 'building',
-        description: 'Stopage 3'
+        description: 'Stopage 3',
+        offsetMinutes: 10
     },
     {
         id: 'stop_4',
@@ -276,7 +279,8 @@ export const busStops = [
         lat: 25.051541,
         lng: 91.389153,
         icon: 'university',
-        description: 'Stopage 4'
+        description: 'Stopage 4',
+        offsetMinutes: 15
     },
     {
         id: 'stop_5',
@@ -284,7 +288,8 @@ export const busStops = [
         lat: 24.954993,
         lng: 91.397314,
         icon: 'graduation-cap',
-        description: 'Stopage 5'
+        description: 'Stopage 5',
+        offsetMinutes: 35
     },
     {
         id: 'stop_6',
@@ -292,7 +297,8 @@ export const busStops = [
         lat: 24.939398,
         lng: 91.410635,
         icon: 'graduation-cap',
-        description: 'Stopage 6'
+        description: 'Stopage 6',
+        offsetMinutes: 40
     },
     {
         id: 'stop_7',
@@ -300,7 +306,8 @@ export const busStops = [
         lat: 24.938887,
         lng: 91.417629,
         icon: 'graduation-cap',
-        description: 'Stopage 7'
+        description: 'Stopage 7',
+        offsetMinutes: 45
     },
     {
         id: 'stop_8',
@@ -308,7 +315,8 @@ export const busStops = [
         lat: 24.939265,
         lng: 91.419438,
         icon: 'graduation-cap',
-        description: 'Stopage 8'
+        description: 'End Point',
+        offsetMinutes: 50
     }
 ];
 
