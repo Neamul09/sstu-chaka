@@ -617,23 +617,12 @@
           const timeStr = snapshot.val().departureTime;
           const times = timeStr.split(',').map(t => t.trim());
 
-          // Populate inputs (Try to guess Up vs Return based on time, or just order)
-          // Simple assumption: 1st is Up, 2nd is Return usually. But let's check hours.
-          // Actually, let's just fill them in order for now, or by logic?
-          // Logic: < 12 is Up, >= 12 is Return
-
+          // Populate inputs (Strict Order: 1st = Up, 2nd = Return)
           let upTime = '';
           let returnTime = '';
 
-          times.forEach(t => {
-            const [h] = t.split(':').map(Number);
-            if (h < 12) upTime = t;
-            else returnTime = t;
-          });
-
-          // Fallback: if multiple same-period times, just fill first empty
-          if (!upTime && times[0]) upTime = times[0];
-          if (!returnTime && times[1]) returnTime = times[1];
+          if (times.length > 0) upTime = times[0];
+          if (times.length > 1) returnTime = times[1];
 
           document.getElementById('upTimeInput').value = upTime;
           document.getElementById('returnTimeInput').value = returnTime;
@@ -650,11 +639,11 @@
 
         if (!upTime && !returnTime) { showToast('Set at least one time', 'warning'); return; }
 
-        // Combine sorted
+        // Combine (No Sort - Respect User Order)
         const timeList = [];
         if (upTime) timeList.push(upTime);
         if (returnTime) timeList.push(returnTime);
-        timeList.sort(); // Ensure order (morning first)
+        // timeList.sort(); // REMOVED: User controls order
 
         const combinedTime = timeList.join(', ');
 
