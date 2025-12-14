@@ -559,6 +559,20 @@
     function updateRouteProgress(busPosition) {
       if (!busPosition || !busPosition.lat || !busPosition.lng) return;
 
+      // Determine ACTIVE route based on selected bus
+      let activeRoute = routeCoords;
+      const busId = appState.selectedBusId;
+      if (busId && appState.buses[busId]) {
+        const rawTime = appState.buses[busId].departureTime;
+        if (rawTime) {
+          const time = getActiveSchedule(rawTime);
+          if (time) {
+            const [h] = time.split(':').map(Number);
+            if (h >= 12) activeRoute = [...routeCoords].reverse();
+          }
+        }
+      }
+
       // Remove old route layers
       if (coveredRoute) map.removeLayer(coveredRoute);
       if (remainingRoute) map.removeLayer(remainingRoute);
@@ -566,7 +580,7 @@
       // Find closest point on route
       let closestIndex = 0;
       let minDistance = Infinity;
-      routeCoords.forEach((coord, index) => {
+      activeRoute.forEach((coord, index) => {
         const dist = Math.sqrt(Math.pow(coord[0] - busPosition.lat, 2) + Math.pow(coord[1] - busPosition.lng, 2));
         if (dist < minDistance) {
           minDistance = dist;
@@ -575,8 +589,8 @@
       });
 
       // Split route
-      const passedCoords = routeCoords.slice(0, closestIndex + 1);
-      const futureCoords = routeCoords.slice(closestIndex);
+      const passedCoords = activeRoute.slice(0, closestIndex + 1);
+      const futureCoords = activeRoute.slice(closestIndex);
 
       // Draw dimmed passed route (gray)
       if (passedCoords.length > 1) {
@@ -705,7 +719,7 @@
              <div style="flex: 1; font-weight: 600; color: #1e40af;">
                ${busData.name || 'Bus'} #${busData.number}
              </div>
-             ${busData.departureTime ? `<span style="font-size: 0.8rem; color: #1e40af; background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px;">${formatTime12(busData.departureTime)}</span>` : ''}
+             ${busData.departureTime ? `<div style="font-size: 0.75rem; color: #1e40af; background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;">${formatScheduleDisplay(busData.departureTime)}</div>` : ''}
           </div>
         `;
 
@@ -813,12 +827,69 @@
       }, 50);
     }
 
-    // Helper: 12h time
+    // Helper: Find relevant schedule from "09:30, 14:30" string
+    function getActiveSchedule(timeStr) {
+      if (!timeStr) return null;
+      // If simple single time, return it
+      if (!timeStr.includes(',')) return timeStr.trim();
+
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const times = timeStr.split(',').map(t => {
+        const [h, m] = t.trim().split(':').map(Number);
+        return {
+          str: t.trim(),
+          minutes: h * 60 + m
+        };
+      }).sort((a, b) => a.minutes - b.minutes);
+
+      // Find the most recent past departure (active trip)
+      // or the nearest future one if none in past
+      let best = times[0];
+      let minDiff = Infinity;
+
+      // Check if we are "in" a trip (e.g. within 2 hours after start)
+      for (let t of times) {
+        const diff = currentMinutes - t.minutes;
+        // If it started within last 3 hours, it's definitely the active one
+        if (diff >= 0 && diff < 180) {
+          return t.str;
+        }
+        // Keep track of nearest future just in case
+        if (Math.abs(diff) < minDiff) {
+          minDiff = Math.abs(diff);
+          best = t;
+        }
+      }
+      return best.str;
+    }
+
     function formatTime12(t) {
       if (!t) return '';
       const [h, m] = t.split(':');
       const hour = parseInt(h);
-      return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+      const minutes = m ? m.trim().padStart(2, '0') : '00';
+      return `${hour % 12 || 12}:${minutes} ${hour >= 12 ? 'PM' : 'AM'}`;
+    }
+
+    // Formatted Display Helper
+    function formatScheduleDisplay(rawTime) {
+      if (!rawTime) return '';
+      const times = rawTime.split(',').map(t => t.trim()); // No sort - respect order
+      return times.map((t, index) => {
+        const [h, m] = t.split(':');
+        const hour = parseInt(h);
+        const min = m ? m.padStart(2, '0') : '00';
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const h12 = hour % 12 || 12;
+        const timeStr = `${h12}:${min} ${ampm}`;
+
+        if (times.length > 1) {
+          return index === 0 ? `${timeStr} (Up)` : `${timeStr} (Return)`;
+        }
+        return timeStr;
+      }).join(' | ');
     }
 
     function updateHeaderInfo(bus) {
@@ -852,21 +923,97 @@
 
 
 
-      busStops.forEach((stop) => {
+      // --- RETURN TRIP LOGIC ---
+      let activeRoute = routeCoords;
+      let activeStops = busStops;
+      let isReturnTrip = false;
+
+      const staticBusData = appState.buses[busId];
+      const rawTime = staticBusData ? staticBusData.departureTime : null;
+      let departureTime = null;
+
+
+
+      if (rawTime) {
+        // Respect sorted order from Admin (Index S0=Up, 1=Return)
+        const times = rawTime.split(',').map(t => t.trim());
+
+        // Logic: 1 HOUR before scheduled time, switch to that trip.
+        // Default: UP TRIP.
+
+        if (times.length > 1) {
+          const returnTimeStr = times[1];
+          const [h, m] = returnTimeStr.split(':').map(Number);
+          const returnMinutes = h * 60 + m;
+
+          const now = new Date();
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          // Window: [Return - 60, Return + 90] (Starts 1 hr before)
+          if (currentMinutes >= (returnMinutes - 60) && currentMinutes <= (returnMinutes + 90)) {
+            isReturnTrip = true;
+            departureTime = returnTimeStr;
+          } else {
+            isReturnTrip = false;
+            departureTime = times[0];
+          }
+        } else {
+          // Single Trip Fallback (PM Trip)
+          const activeStr = getActiveSchedule(rawTime);
+          const [h, m] = activeStr.split(':').map(Number);
+          if (h >= 12) {
+            const tripMinutes = h * 60 + m;
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            // Window: T-60 to T+90
+            if (currentMinutes >= (tripMinutes - 60) && currentMinutes <= (tripMinutes + 90)) {
+              isReturnTrip = true;
+              departureTime = activeStr;
+            } else {
+              isReturnTrip = false;
+              departureTime = activeStr;
+            }
+          } else {
+            isReturnTrip = false;
+            departureTime = activeStr;
+          }
+        }
+      }
+
+      if (isReturnTrip) {
+        // Reverse Route
+        activeRoute = [...routeCoords].reverse();
+
+        // Reverse Stops & Recalculate Offsets
+        activeStops = [...busStops].reverse().map(stop => {
+          const maxDuration = 55;
+          const newOffset = stop.offsetMinutes !== undefined ? Math.max(0, maxDuration - stop.offsetMinutes) : 0;
+          return { ...stop, offsetMinutes: newOffset };
+        });
+      }
+
+      // Update Header with Trip Direction
+      const directionHTML = isReturnTrip
+        ? '<span style="color:#ef4444; font-size:0.8em;">(Return Trip: SSTU ➝ City)</span>'
+        : '<span style="color:#10b981; font-size:0.8em;">(Up Trip: City ➝ SSTU)</span>';
+
+      const tripHeader = document.getElementById('tripBusName');
+      if (tripHeader) tripHeader.innerHTML = `(${staticBusData.name || 'Bus'}) ${directionHTML}`;
+
+
+      activeStops.forEach((stop) => {
         // Dynamic ETA
         const etaData = calculateETA(
           { lat: busData.lat, lng: busData.lng },
           { lat: stop.lat, lng: stop.lng },
           busData.speed,
           speedHistory,
-          routeCoords
+          activeRoute // Pass DYNAMIC route
         );
 
         // Official Schedule Calculation
         let officialTimeHTML = '';
-        const staticBusData = appState.buses[busId];
-        const departureTime = staticBusData ? staticBusData.departureTime : null;
-
         if (departureTime && stop.offsetMinutes !== undefined) {
           const startTimeParts = departureTime.split(':');
           const startMin = parseInt(startTimeParts[0]) * 60 + parseInt(startTimeParts[1]);
@@ -906,23 +1053,66 @@
         `;
         stopsList.appendChild(stopDiv);
       });
-      console.log('✅ ETAs updated, stops rendered:', busStops.length);
+      console.log('✅ ETAs updated, stops rendered:', activeStops.length, 'Return Trip:', isReturnTrip);
     }
 
     function updateTripProgress(data) {
+      // Need busId to know if return trip
+      // We'll trust that the global 'appState.selectedBusId' is correct since this is only called for the selected bus
+      const busId = appState.selectedBusId;
+      const staticBusData = appState.buses[busId];
+
+      let activeRoute = routeCoords;
+      if (staticBusData && staticBusData.departureTime) {
+        const rawTime = staticBusData.departureTime;
+        // Respect sorted order from Admin (Index 0=Up, 1=Return)
+        const times = rawTime.split(',').map(t => t.trim());
+
+        let isReturn = false;
+
+        if (times.length > 1) {
+          const returnTimeStr = times[1];
+          const [h, m] = returnTimeStr.split(':').map(Number);
+          const returnMinutes = h * 60 + m;
+
+          const now = new Date();
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          // Window: [Return - 60, Return + 90]
+          if (currentMinutes >= (returnMinutes - 60) && currentMinutes <= (returnMinutes + 90)) {
+            isReturn = true;
+          }
+        } else {
+          // Single Trip Fallback (PM Trip)
+          const activeStr = getActiveSchedule(rawTime);
+          const [h, m] = activeStr.split(':').map(Number);
+          if (h >= 12) {
+            const tripMinutes = h * 60 + m;
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            if (currentMinutes >= (tripMinutes - 60) && currentMinutes <= (tripMinutes + 90)) {
+              isReturn = true;
+            }
+          }
+        }
+
+        if (isReturn) activeRoute = [...routeCoords].reverse();
+      }
+
       console.log('🚌 updateTripProgress called with:', data);
 
       const progress = calculateTripProgress(
         { lat: data.lat, lng: data.lng },
-        routeCoords
+        activeRoute
       );
+
 
       console.log('📈 Trip progress calculated:', progress);
 
       const progressBar = document.getElementById('tripProgress');
       const progressText = document.getElementById('progressText');
       const distanceCovered = document.getElementById('distanceCovered');
-      const distanceRemaining = document.getElementById('distanceRemaining');
 
       // Update UI with validated values
       const percentage = !isNaN(progress.percentage) ? progress.percentage : 0;
