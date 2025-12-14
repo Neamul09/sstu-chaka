@@ -378,7 +378,8 @@
       </div>
       <div class="banner-content">
         <h3>Auto-Tracking Active</h3>
-        <p>Your location is being shared automatically. Works even when screen is off!</p>
+        <p>Your location is being shared.</p>
+        <p style="font-weight: 700; color: #dc2626; margin-top: 0.25rem;">⚠ KEEP SCREEN ON. Do not minimize!</p>
       </div>
     </div>
 
@@ -704,6 +705,12 @@
           document.getElementById('gpsStatusBanner').style.display = 'flex';
           showToast('Auto-tracking started!', 'success');
 
+          // Bridge to Flutter App (if running in Hybrid Mode)
+          if (window.FlutterChannel && currentUser?.assignedBus) {
+            console.log('Sending Bus ID to Flutter:', currentUser.assignedBus);
+            window.FlutterChannel.postMessage(currentUser.assignedBus);
+          }
+
         } catch (error) {
           console.error('GPS error:', error);
           document.getElementById('gpsStatus').textContent = 'Error';
@@ -722,6 +729,18 @@
           wakeLock = null;
         }
       }
+
+      // Re-acquire Wake Lock if visibility changes (e.g. user switches back to tab)
+      document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+          try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock re-acquired');
+          } catch (err) {
+            console.log('Wake Lock re-acquire failed:', err);
+          }
+        }
+      });
 
       async function updatePosition(position) {
         const { latitude: lat, longitude: lng, speed, accuracy } = position.coords;
