@@ -756,17 +756,26 @@
       const { lat, lng, speed } = data;
       appState.speedTrackers[busId].addSpeed(speed);
 
+      const speedDisplay = speed ? Math.round(speed) : 0;
+      const busName = appState.buses[busId]?.name || 'Bus';
+      const popupContent = `
+        <div style="text-align:center;">
+          <div style="font-weight:bold; color:#1e40af; font-size: 14px;">${busName}</div>
+          <div style="font-size: 12px; color: #3b82f6; margin-top: 2px;">
+            <i class="fas fa-tachometer-alt"></i> ${speedDisplay} km/h
+          </div>
+        </div>
+      `;
+
       // Reuse existing marker if available
       if (appState.markers[busId]) {
         const marker = appState.markers[busId];
         const newLatLng = new L.LatLng(lat, lng);
         marker.setLatLng(newLatLng);
+        marker.setPopupContent(popupContent); // Dynamic update
 
         // Trigger pulse animation
         triggerPulse(marker);
-
-        // Ensure popup content is updated if needed (optional, but good for bus name updates)
-        // For now, just keeping position is enough. Popup content is static name.
         return;
       }
 
@@ -780,8 +789,7 @@
       }).addTo(map);
 
       // Popup
-      const busName = appState.buses[busId]?.name || 'Bus';
-      marker.bindPopup(`<div style="text-align:center; font-weight:bold; color:#1e40af">${busName}</div>`, {
+      marker.bindPopup(popupContent, {
         closeButton: false, autoClose: false, closeOnClick: false
       });
       // Note: We don't auto-open popup on creation unless selected (handled by caller or centerMapOnSelected)
